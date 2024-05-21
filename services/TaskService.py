@@ -19,7 +19,6 @@ class TaskService():
         self.db.open(use_ssh=True)
 
     def analyze_task(self):
-
         task_query = self.db.query(DataTask)
         task_result = task_query.limit(10)
         with open("../baidu_stopwords.txt", "r") as f:
@@ -40,14 +39,26 @@ class TaskService():
             for k, v in cluster_result.items():
                 dataEvent = DataEvent()
                 snowflake = SnowFlake()
-                dataEvent.id = snowflake.generate()
+                dataEventid = snowflake.generate()
+                dataEvent.id = dataEventid
                 dataEvent.plan_id = task.plan_id
                 dataEvent.task_id = task.id
-                dataEvent.newsIds = str([news[index].id for index in v])
-                # dataEvent.style
-
+                news_ids = [news[index].id for index in v]
+                news_titles = [news[index].title for index in v]
+                news_ori_titles = [news[index].original_title for index in v]
+                dataEvent.newsIds = str(news_ids)
+                # 识别相似新闻
+                cluster_news_result = cluster.cluster_sentences(news_ori_titles, threshold=0.5) \
+                    if len(news_ori_titles) > 1 else {0: v}
+                for ck, cv in cluster_news_result.items():
+                    dataSimilar = DataSimilar()
+                    dataSimilar.id = snowflake.generate()
+                    dataSimilar.plan_id = task.plan_id
+                    dataSimilar.news_ids = str([news[cindex].id for cindex in cv])
+                    dataSimilar.event_id = dataEventid
+                    self.db.add(dataSimilar)
                 # 分词,统计词频
-                data = "。".join([news[index].title for index in v])
+                data = "。".join(news_titles)
                 seg_list = jieba.cut(data)
                 words = [word for word in seg_list if word not in stop_words]
                 word_counts = Counter(words)
@@ -62,15 +73,7 @@ class TaskService():
                 print(dataEvent.__dict__)
                 self.db.commit()
                 # break
-            break
-
-    # @staticmethod
-    # def get_task():
-    #     db = DB()
-    #     db.connect()
-    #     task_service = TaskService()
-    #     task_service.task(db)
-    #     db.close()
+            # break
 
 
 if __name__ == '__main__':

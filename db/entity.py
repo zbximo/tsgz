@@ -16,7 +16,7 @@ class DataEvent(Base):
     style = Column(VARCHAR(255), comment='事件类型 自然灾害')
     title = Column(VARCHAR(255), comment='事件标题')
     introduce = Column(VARCHAR(255), comment='事件摘要，这里最好可以将关键词进行高亮显示，加入<em></em>标签')
-    keywords = Column(VARCHAR(255), comment='事件关键词')
+    # keywords = Column(VARCHAR(255), comment='事件关键词')
     newsIds = Column(TEXT, comment='所包含的新闻idList')
     postIds = Column(TEXT, comment='所包含的贴文idList')
     is_add = Column(TINYINT, comment='是否流转进入业务数据库')
