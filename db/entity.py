@@ -20,6 +20,7 @@ class DataEvent(Base):
     newsIds = Column(TEXT, comment='所包含的新闻idList')
     postIds = Column(TEXT, comment='所包含的贴文idList')
     is_add = Column(TINYINT, comment='是否流转进入业务数据库')
+    summary = Column(TEXT, comment='事件总结')
 
 
 class DataNew(Base):
