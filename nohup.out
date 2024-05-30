@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/zbximoy/Desktop/pythonProject/tsgz/app.py", line 8, in <module>
+    from services.TaskService import TaskService
+  File "/Users/zbximoy/Desktop/pythonProject/tsgz/services/TaskService.py", line 5, in <module>
+    from utils.Tools import *
+  File "/Users/zbximoy/Desktop/pythonProject/tsgz/utils/Tools.py", line 6, in <module>
+    from db.database import dbTools
+  File "/Users/zbximoy/Desktop/pythonProject/tsgz/db/database.py", line 2, in <module>
+    import sshtunnel
+ModuleNotFoundError: No module named 'sshtunnel'

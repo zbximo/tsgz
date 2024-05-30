@@ -14,7 +14,7 @@ class EventCls():
         schema = ["政治变动", "军事冲突", "科技创新", "经济发展", "文化娱乐", "自然灾害", "事故灾难", "公共卫生",
                   "社会安全"]
 
-        self.cls = Taskflow("zero_shot_text_classification", schema=schema, single_label=True)
+        self.cls = Taskflow("zero_shot_text_classification", schema=schema, single_label=True,device_id=0)
 
     def predict(self, data):
         if isinstance(data, str):

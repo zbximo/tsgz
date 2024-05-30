@@ -20,6 +20,10 @@ def db2model():
     db.close()
 
 
+def get_stopwords():
+    with open("baidu_stopwords.txt", "r") as f:
+        stop_words = f.read().splitlines()
+    return stop_words
 
 
 class SnowFlake(object):
