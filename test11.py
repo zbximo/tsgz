@@ -78,3 +78,8 @@ pca_weights = pca.fit_transform(tfidf.toarray())
 #     # print(clu_v)
 #     for i in clu_v:
 #         print(text_list[i], corpus[i], "\n===============================>")
+
+from services.TaskService import TaskService
+
+TS = TaskService()
+TS.analyze_task(1, 48)

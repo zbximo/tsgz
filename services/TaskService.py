@@ -21,7 +21,8 @@ class TaskService():
     def analyze_task(self, id=2, plan_id=None):
         if not plan_id:
             raise Exception("plan_id is None")
-        task_query = self.db.query(DataTask).filter(and_(DataTask.status == 0, DataTask.plan_id == plan_id)).order_by(desc(DataTask.create_date))
+        task_query = self.db.query(DataTask).filter(and_(DataTask.status == 0, DataTask.plan_id == plan_id)).order_by(
+            desc(DataTask.create_date))
         task_result = task_query.all()
         # with open("../utils/baidu_stopwords.txt", "r") as f:
         #     stop_words = f.read().splitlines()
@@ -61,7 +62,7 @@ class TaskService():
                 dataEvent.newsIds = str(news_ids)
                 # 识别相似新闻
                 cluster_news_result = cluster.cluster_sentences(news_ori_titles, threshold=1) \
-                    if len(news_ori_titles) > 1 else {0: v}
+                    if len(news_ori_titles) > 1 else {0: [0]}
                 for ck, cv in cluster_news_result.items():
                     dataSimilar = DataSimilar()
                     dataSimilar.id = snowflake.generate()
@@ -69,6 +70,7 @@ class TaskService():
                     dataSimilar.news_ids = str([news_ids[cindex] for cindex in cv])
                     dataSimilar.event_id = dataEventid
                     self.db.add(dataSimilar)
+
                 # 分词,统计词频
                 data = "。".join(news_titles)
                 seg_list = jieba.cut(data)
@@ -82,13 +84,13 @@ class TaskService():
                 dataEvent.postIds = str([p.id for p in post_query])
                 self.db.add(dataEvent)
 
-                # print(dataEvent.__dict__)
                 self.db.commit()
                 # break
             break
         return 1
 
 
+
 if __name__ == '__main__':
     TS = TaskService()
-    TS.analyze_task()
+    # TS.analyze_task()
