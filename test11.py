@@ -79,7 +79,12 @@ pca_weights = pca.fit_transform(tfidf.toarray())
 #     for i in clu_v:
 #         print(text_list[i], corpus[i], "\n===============================>")
 
-from services.TaskService import TaskService
+# from services.TaskService import TaskService
+#
+# TS = TaskService()
+# TS.analyze_task(1, 48)
 
-TS = TaskService()
-TS.analyze_task(1, 48)
+import os
+
+# 输出所有系统变量
+print(os.environ)

@@ -7,8 +7,8 @@
 # SSH 隧道配置
 SSH_CONFIG = {
     'host': '10.63.146.221',
-    'port': 8201,
-    'username': 'lenovo1',
+    'port': 8203,
+    'username': 'lenovo3',
     'password': 'tsgz2024',
 }
 

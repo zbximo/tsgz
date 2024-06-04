@@ -17,7 +17,7 @@ def main():
     parser.add_argument('--plan_id', type=int, help='Plan ID')
 
     parser.add_argument('--use_gpu', type=int, help='0:False, 1:True')
-    parser.print_help()
+    # parser.print_help()
 
     args = parser.parse_args()
     if args.name is None:

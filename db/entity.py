@@ -1,5 +1,5 @@
 # coding: utf-8
-from sqlalchemy import BigInteger, Column, DateTime, Integer, text
+from sqlalchemy import BigInteger, Column, DateTime, Integer, String, Text, text
 from sqlalchemy.dialects.mysql import TEXT, TINYINT, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -13,14 +13,14 @@ class DataEvent(Base):
     id = Column(BigInteger, primary_key=True, comment='事件id')
     task_id = Column(BigInteger, comment='任务id')
     plan_id = Column(BigInteger, comment='方案id')
-    style = Column(VARCHAR(255), comment='事件类型 自然灾害')
-    title = Column(VARCHAR(255), comment='事件标题')
-    introduce = Column(VARCHAR(255), comment='事件摘要，这里最好可以将关键词进行高亮显示，加入<em></em>标签')
-    # keywords = Column(VARCHAR(255), comment='事件关键词')
+    title = Column(TEXT, comment='事件标题')
+    introduce = Column(TEXT, comment='事件摘要，这里最好可以将关键词进行高亮显示，加入<em></em>标签')
     newsIds = Column(TEXT, comment='所包含的新闻idList')
     postIds = Column(TEXT, comment='所包含的贴文idList')
     is_add = Column(TINYINT, comment='是否流转进入业务数据库')
-    summary = Column(TEXT, comment='事件总结')
+    summary = Column(TEXT, comment='AI总结')
+    style = Column(String(255))
+    prediction = Column(TEXT, comment='发展预测')
 
 
 class DataNew(Base):
@@ -44,6 +44,7 @@ class DataNew(Base):
     emotion = Column(Integer, comment='情感 0正面 1负面 2中立')
     is_emotional_analysed = Column(TINYINT, comment='是否进行过情感分析 初始为0 情感分析后请置1')
     is_es_add = Column(TINYINT, server_default=text("'0'"), comment='是否上传到es')
+    images = Column(Text)
 
 
 class DataPerson(Base):
@@ -79,7 +80,7 @@ class DataSocialComment(Base):
     post_id = Column(BigInteger, comment='帖子id')
     comment_Uid = Column(VARCHAR(255), comment='评论人id')
     comment_Name = Column(VARCHAR(255), comment='评论人名')
-    comment_Avatar = Column(VARCHAR(255), comment='评论人头像')
+    comment_Avatar = Column(TEXT, comment='评论人头像')
     comment_content = Column(TEXT, comment='翻译后的评论内容  请将内容翻译完后写如此字段')
     comment_Original_Content = Column(TEXT, comment='原始评论内容')
     is_Translated = Column(TINYINT, server_default=text("'0'"), comment='是否翻译，翻译完请将此列置为1')
@@ -112,6 +113,7 @@ class DataSocialPost(Base):
     emotion = Column(Integer, comment='0：正面 1：负面 2：中立 ')
     is_Emotional_Analysed = Column(TINYINT, comment='是否进行过情感分析 是1 否0')
     is_es_add = Column(TINYINT)
+    images = Column(Text)
 
 
 class DataTask(Base):
@@ -121,6 +123,6 @@ class DataTask(Base):
     plan_id = Column(BigInteger)
     news_id_list = Column(TEXT, comment='List<newsId>')
     post_id_list = Column(TEXT, comment='List<postId>')
-    status = Column(Integer, comment='0未完成 1已完成')
+    status = Column(Integer, comment='0未完成 1模型已完成待接收 2接收完毕')
     create_date = Column(DateTime)
     keywords = Column(VARCHAR(255), comment='检索关键词')

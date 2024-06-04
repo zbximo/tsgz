@@ -1,4 +1,3 @@
-import config
 import sshtunnel
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker
@@ -10,7 +9,16 @@ class dbTools(object):
     session = None
     isClosed = True
 
-    def open(self, db_config=config.DB_CONFIG, use_ssh=False):
+    def __init__(self, mode='test'):
+        if mode == 'test':
+            config_module = 'config'
+        else:
+            config_module = 'config_pro'
+
+        self.config = __import__(config_module)
+
+    def open(self, use_ssh=False):
+        db_config = self.config.DB_CONFIG
         user = db_config['username']
         pwd = db_config["password"]
         host = db_config['host']
@@ -28,6 +36,7 @@ class dbTools(object):
         return self.session
 
     def open_ssh(self):
+        config = self.config
         self.tunnel = sshtunnel.SSHTunnelForwarder(
             ssh_address_or_host=(config.SSH_CONFIG['host'], config.SSH_CONFIG['port']),
             ssh_username=config.SSH_CONFIG['username'],
@@ -71,7 +80,7 @@ class dbTools(object):
 
 
 if __name__ == '__main__':
-    db = dbTools()
+    db = dbTools("test")
     db.open(use_ssh=True)
     result = db.execute(text("show tables"))
     for i in result:
