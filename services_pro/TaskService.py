@@ -11,19 +11,24 @@ from db.database import dbTools
 from db.entity import *
 from models.Cluster import *
 import jieba
-
-
+import log_pro
+import os
 class TaskService():
-    def __init__(self, mode='test'):
+    def __init__(self, mode='pro'):
         self.db = dbTools(mode)
         self.db.open(use_ssh=True)
+        self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
-    def analyze_task(self, id=2, plan_id=None):
-        if not plan_id:
-            raise Exception("plan_id is None")
-        task_query = self.db.query(DataTask).filter(and_(DataTask.status == 0, DataTask.plan_id == plan_id)).order_by(
-            desc(DataTask.create_date))
+    def analyze_task(self):
+        self.db.get_new_session()
+        task_query = self.db.query(DataTask).filter(and_(DataTask.status == 0))
         task_result = task_query.all()
+        # print(f'{task_result=}')
+        self.log_pro.info(len(task_result))
+
+        if len(task_result) == 0:
+
+            return 0
         # with open("../utils/baidu_stopwords.txt", "r") as f:
         #     stop_words = f.read().splitlines()
         stop_words = get_stopwords()
@@ -31,27 +36,22 @@ class TaskService():
         cluster.load_text_emb()
         cluster.load_pos_model()
         for task in task_result:
+            self.log_pro.info(f'{task.id=} start')
+
             task: DataTask
             post_id_list = eval(task.post_id_list) if task.post_id_list else None
             new_id_list = eval(task.news_id_list) if task.news_id_list else None
-            print("querying news......")
 
             # cluster and topic model for news
             news_query: Query = self.db.query(DataNew).filter(DataNew.id.in_(new_id_list))
             news = news_query.all()
             news_original_titles = [j.original_title for j in news]
-            print("clustering ......")
 
-            if id == 0:
-                cluster_result = cluster.cluster_sentences(news_original_titles, threshold=1)
-            elif id == 1:
-                cluster_result = cluster.cluster_titles_agg(news_original_titles)
-            else:
-                cluster_result = cluster.cluster_titles_tfidf(news_original_titles)
-            print("cluster over!")
+            cluster_result = cluster.cluster_titles_agg(news_original_titles)
+
+            snowflake = SnowFlake()
             for k, v in cluster_result.items():
                 dataEvent = DataEvent()
-                snowflake = SnowFlake()
                 dataEventid = snowflake.generate()
                 dataEvent.id = dataEventid
                 dataEvent.plan_id = task.plan_id
@@ -84,12 +84,18 @@ class TaskService():
                 dataEvent.postIds = str([p.id for p in post_query])
                 self.db.add(dataEvent)
             task.status = 1
+            self.log_pro.info(f'{task.id=} over')
             self.db.commit()
-            # break
-            break
+        self.db.close()
         return 1
+
+    def run_all_time(self):
+        while True:
+            r = self.analyze_task()
+            if r == 0:
+                time.sleep(60)
 
 
 if __name__ == '__main__':
     TS = TaskService()
-    # TS.analyze_task()
+    TS.run_all_time()

@@ -29,9 +29,12 @@ class dbTools(object):
         url = 'mysql+pymysql://%s:%s@%s:%d/%s' % (user, pwd, host, port, db)
         print(url)
         engine = create_engine(url, echo=False)
-        DbSession = sessionmaker(bind=engine)
+        self.DbSession = sessionmaker(bind=engine)
 
-        self.session = DbSession()
+
+    def get_new_session(self):
+
+        self.session = self.DbSession()
         self.isClosed = False
         return self.session
 
@@ -73,8 +76,13 @@ class dbTools(object):
             pass
         try:
             self.session.close()
-            self.tunnel.close()
             self.isClosed = True
+        except Exception as e:
+            pass
+
+    def close_ssh(self):
+        try:
+            self.tunnel.close()
         except Exception as e:
             pass
 
