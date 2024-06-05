@@ -84,9 +84,9 @@ class TaskService():
                 dataEvent.postIds = str([p.id for p in post_query])
                 self.db.add(dataEvent)
             task.status = 1
-            self.db.commit()
             self.log_pro.info(f'{task.id=} over')
-            self.db.close()
+            self.db.commit()
+        self.db.close()
         return 1
 
     def run_all_time(self):
