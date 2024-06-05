@@ -12,8 +12,8 @@ import constants
 
 
 class NewsService():
-    def __init__(self):
-        self.db = dbTools()
+    def __init__(self, mode='test'):
+        self.db = dbTools(mode)
         self.db.open(use_ssh=True)
 
     def senti_news(self):

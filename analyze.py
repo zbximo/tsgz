@@ -18,6 +18,7 @@ def main():
 
     parser.add_argument('--use_gpu', type=int, help='0:False, 1:True')
     # parser.print_help()
+    parser.add_argument('--env', type=str, help='test、product', default='test', choices=["test", "product"])
 
     args = parser.parse_args()
     if args.name is None:
@@ -26,18 +27,19 @@ def main():
     from services.NewsService import NewsService
     from services.SocialPostService import SocialPostService
     name = args.name
+    mode = args.env
     if name == 'cluster':
         method_id = args.method_id
         plan_id = args.plan_id
         print(f'{method_id=},{plan_id=}')
         if method_id is not None and plan_id is not None:
-            ts = TaskService()
+            ts = TaskService(mode)
             ts.analyze_task(id=method_id, plan_id=plan_id)
     elif name == 'new':
-        ns = NewsService()
+        ns = NewsService(mode)
         ns.senti_news()
     elif name == 'post':
-        sps = SocialPostService()
+        sps = SocialPostService(mode)
         sps.senti_post()
 
 
