@@ -1,3 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
+
 import sshtunnel
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker
@@ -6,8 +8,6 @@ from sqlalchemy.ext.declarative import declarative_base
 
 
 class dbTools(object):
-    session = None
-    isClosed = True
 
     def __init__(self, mode='test'):
         if mode == 'test':
@@ -28,15 +28,16 @@ class dbTools(object):
             host, port = self.open_ssh()
         url = 'mysql+pymysql://%s:%s@%s:%d/%s' % (user, pwd, host, port, db)
         print(url)
-        engine = create_engine(url, echo=False)
-        self.DbSession = sessionmaker(bind=engine)
+        # engine = create_engine(url,  echo=False)
 
+        engine = create_engine(url, max_overflow=200, pool_size=100, echo=False)
+        self.engine = engine
+        self.DbSession = sessionmaker(bind=engine)
 
     def get_new_session(self):
 
-        self.session = self.DbSession()
-        self.isClosed = False
-        return self.session
+        session = self.DbSession()
+        return session
 
     def open_ssh(self):
         config = self.config
@@ -52,34 +53,6 @@ class dbTools(object):
         local_bind_port = self.tunnel.local_bind_port
         return local_bind_address, local_bind_port
 
-    def query(self, type):
-        query = self.session.query(type)
-        return query
-
-    def execute(self, sql):
-        return self.session.execute(sql)
-
-    def add(self, item):
-        self.session.add(item)
-
-    def add_all(self, items):
-        self.session.add_all(items)
-
-    def delete(self, item):
-        self.session.delete(item)
-
-    def commit(self):
-        self.session.commit()
-
-    def close(self):
-        if self.isClosed:
-            pass
-        try:
-            self.session.close()
-            self.isClosed = True
-        except Exception as e:
-            pass
-
     def close_ssh(self):
         try:
             self.tunnel.close()
@@ -90,7 +63,9 @@ class dbTools(object):
 if __name__ == '__main__':
     db = dbTools("test")
     db.open(use_ssh=True)
-    result = db.execute(text("show tables"))
+    session = db.get_new_session()
+
+    result = session.execute(text("show tables"))
     for i in result:
         print(i)
-    db.close()
+    session.close()

@@ -1,3 +1,4 @@
+# !/bin/bash
 if [ "$1" = "test" ]; then
     while IFS= read -r pid; do
         kill "$pid" || true # 尝试杀死进程，忽略错误

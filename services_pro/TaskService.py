@@ -13,6 +13,8 @@ from models.Cluster import *
 import jieba
 import log_pro
 import os
+
+
 class TaskService():
     def __init__(self, mode='pro'):
         self.db = dbTools(mode)
@@ -20,14 +22,15 @@ class TaskService():
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
     def analyze_task(self):
-        self.db.get_new_session()
-        task_query = self.db.query(DataTask).filter(and_(DataTask.status == 0))
+        session = self.db.get_new_session()
+
+        task_query = session.query(DataTask).filter(and_(DataTask.status == 0))
         task_result = task_query.all()
         # print(f'{task_result=}')
         self.log_pro.info(len(task_result))
 
         if len(task_result) == 0:
-
+            session.close()
             return 0
         # with open("../utils/baidu_stopwords.txt", "r") as f:
         #     stop_words = f.read().splitlines()
@@ -43,7 +46,7 @@ class TaskService():
             new_id_list = eval(task.news_id_list) if task.news_id_list else None
 
             # cluster and topic model for news
-            news_query: Query = self.db.query(DataNew).filter(DataNew.id.in_(new_id_list))
+            news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
             news = news_query.all()
             news_original_titles = [j.original_title for j in news]
 
@@ -69,7 +72,7 @@ class TaskService():
                     dataSimilar.plan_id = task.plan_id
                     dataSimilar.news_ids = str([news_ids[cindex] for cindex in cv])
                     dataSimilar.event_id = dataEventid
-                    self.db.add(dataSimilar)
+                    session.add(dataSimilar)
 
                 # 分词,统计词频
                 data = "。".join(news_titles)
@@ -79,14 +82,16 @@ class TaskService():
                 top_words = [word for word, count in word_counts.most_common(3)]
                 filters = [DataSocialPost.title.contains(word) for word in top_words]
                 # 在Posts中搜索关键词
-                post_query = self.db.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list)) \
+                session_q = self.db.get_new_session()
+                post_query = session_q.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list)) \
                     .filter(and_(*filters)).all()
+                session_q.close()
                 dataEvent.postIds = str([p.id for p in post_query])
-                self.db.add(dataEvent)
+                session.add(dataEvent)
             task.status = 1
             self.log_pro.info(f'{task.id=} over')
-            self.db.commit()
-        self.db.close()
+            session.commit()
+        session.close()
         return 1
 
     def run_all_time(self):

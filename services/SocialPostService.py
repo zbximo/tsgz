@@ -18,9 +18,11 @@ class SocialPostService():
         self.db.open(use_ssh=True)
 
     def senti_post(self):
+        session = self.db.get_new_session()
+
         SC = SentimentCls()
-        query: Query = self.db.query(DataSocialPost).filter(DataSocialPost.is_Emotional_Analysed == 0)
-        # query: Query = self.db.query(DataSocialPost)
+        query: Query = session.query(DataSocialPost).filter(DataSocialPost.is_Emotional_Analysed == 0)
+        # query: Query = session.query(DataSocialPost)
 
         num = query.count()
         bs = 100
@@ -40,7 +42,8 @@ class SocialPostService():
                 self.retry_senti(result)
 
             finally:
-                self.db.commit()
+                session.commit()
+        session.close()
         return num
 
     def retry_senti(self, result):
@@ -53,11 +56,8 @@ class SocialPostService():
             except:
                 one.emotion = constants.Sentiment.senti["neutral"]
 
-    def close(self):
-        self.db.close()
 
 
 if __name__ == '__main__':
     SPS = SocialPostService()
     r = SPS.senti_post()
-    SPS.close()

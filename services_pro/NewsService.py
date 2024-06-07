@@ -20,16 +20,18 @@ class NewsService():
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
     def senti_news(self):
-        self.db.get_new_session()
-        SC = SentimentCls()
-        query: Query = self.db.query(DataNew).filter(DataNew.is_emotional_analysed == 0)
-        # query: Query = self.db.query(DataNew)
+        session = self.db.get_new_session()
+        query: Query = session.query(DataNew).filter(DataNew.is_emotional_analysed == 0)
+        # query: Query = session.query(DataNew)
 
         num = query.count()
         self.log_pro.info(num)
         if num == 0:
+            session.close()
             return 0
-        bs = 200
+        SC = SentimentCls()
+
+        bs = 100
         for i in tqdm(range(0, num, bs)):
             # result = query.offset(i).limit(bs).all()
             result = query.limit(bs).all()
@@ -44,8 +46,8 @@ class NewsService():
             except Exception as e:
                 self.retry_senti(result)
             finally:
-                self.db.commit()
-        self.db.close()
+                session.commit()
+        session.close()
         return 1
 
     def run_all_time(self):
@@ -64,8 +66,6 @@ class NewsService():
             except:
                 one.emotion = constants.Sentiment.senti["neutral"]
 
-    def close(self):
-        self.db.close()
 
 
 if __name__ == '__main__':

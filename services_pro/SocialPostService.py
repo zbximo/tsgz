@@ -14,6 +14,7 @@ from sqlalchemy.orm.query import Query
 import constants
 import os
 
+
 class SocialPostService():
     def __init__(self, mode='pro'):
         self.db = dbTools(mode)
@@ -21,16 +22,17 @@ class SocialPostService():
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
     def senti_post(self):
-        self.db.get_new_session()
-        SC = SentimentCls()
-        query: Query = self.db.query(DataSocialPost).filter(DataSocialPost.is_Emotional_Analysed == 0)
-        # query: Query = self.db.query(DataSocialPost)
+        session = self.db.get_new_session()
+        query: Query = session.query(DataSocialPost).filter(DataSocialPost.is_Emotional_Analysed == 0)
+        # query: Query = session.query(DataSocialPost)
 
         num = query.count()
         # print('post total num:', num)
         self.log_pro.info(num)
         if num == 0:
+            session.close()
             return 0
+        SC = SentimentCls()
         bs = 100
         for i in tqdm(range(0, num, bs)):
             # result = query.offset(i).limit(bs).all()
@@ -48,8 +50,8 @@ class SocialPostService():
                 self.retry_senti(result)
 
             finally:
-                self.db.commit()
-        self.db.close()
+                session.commit()
+        session.close()
         return num
 
     def retry_senti(self, result):
@@ -67,9 +69,6 @@ class SocialPostService():
             r = self.senti_post()
             if r == 0:
                 time.sleep(60)
-
-    def close(self):
-        self.db.close()
 
 
 if __name__ == '__main__':

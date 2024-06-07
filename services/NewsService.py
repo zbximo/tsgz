@@ -17,10 +17,11 @@ class NewsService():
         self.db.open(use_ssh=True)
 
     def senti_news(self):
+        session = self.db.get_new_session()
 
         SC = SentimentCls()
-        query: Query = self.db.query(DataNew).filter(DataNew.is_emotional_analysed == 0)
-        # query: Query = self.db.query(DataNew)
+        query: Query = session.query(DataNew).filter(DataNew.is_emotional_analysed == 0)
+        # query: Query = session.query(DataNew)
 
         num = query.count()
         bs = 500
@@ -38,8 +39,8 @@ class NewsService():
             except Exception as e:
                 self.retry_senti(result)
             finally:
-                self.db.commit()
-
+                session.commit()
+        session.close()
         return num
 
     def retry_senti(self, result):
@@ -52,11 +53,8 @@ class NewsService():
             except:
                 one.emotion = constants.Sentiment.senti["neutral"]
 
-    def close(self):
-        self.db.close()
 
 
 if __name__ == '__main__':
     news = NewsService()
     r = news.senti_news()
-    news.close()

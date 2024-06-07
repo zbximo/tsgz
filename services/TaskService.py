@@ -21,7 +21,8 @@ class TaskService():
     def analyze_task(self, id=2, plan_id=None):
         if not plan_id:
             raise Exception("plan_id is None")
-        task_query = self.db.query(DataTask).filter(and_(DataTask.status == 0, DataTask.plan_id == plan_id)).order_by(
+        session = self.db.get_new_session()
+        task_query = session.query(DataTask).filter(and_(DataTask.status == 0, DataTask.plan_id == plan_id)).order_by(
             desc(DataTask.create_date))
         task_result = task_query.all()
         # with open("../utils/baidu_stopwords.txt", "r") as f:
@@ -37,7 +38,7 @@ class TaskService():
             print("querying news......")
 
             # cluster and topic model for news
-            news_query: Query = self.db.query(DataNew).filter(DataNew.id.in_(new_id_list))
+            news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
             news = news_query.all()
             news_original_titles = [j.original_title for j in news]
             print("clustering ......")
@@ -69,7 +70,7 @@ class TaskService():
                     dataSimilar.plan_id = task.plan_id
                     dataSimilar.news_ids = str([news_ids[cindex] for cindex in cv])
                     dataSimilar.event_id = dataEventid
-                    self.db.add(dataSimilar)
+                    session.add(dataSimilar)
 
                 # 分词,统计词频
                 data = "。".join(news_titles)
@@ -79,13 +80,15 @@ class TaskService():
                 top_words = [word for word, count in word_counts.most_common(3)]
                 filters = [DataSocialPost.title.contains(word) for word in top_words]
                 # 在Posts中搜索关键词
-                post_query = self.db.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list)) \
+                session_q = self.db.get_new_session()
+                post_query = session_q.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list)) \
                     .filter(and_(*filters)).all()
+                session_q.close()
                 dataEvent.postIds = str([p.id for p in post_query])
-                self.db.add(dataEvent)
+                session.add(dataEvent)
             task.status = 1
-            self.db.commit()
-            # break
+            session.commit()
+            session.close()
             break
         return 1
 
