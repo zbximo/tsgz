@@ -1,5 +1,5 @@
 # coding: utf-8
-from sqlalchemy import BigInteger, Column, DateTime, Integer, String, Text, text
+from sqlalchemy import BigInteger, Column, DateTime, Integer, text
 from sqlalchemy.dialects.mysql import TEXT, TINYINT, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -7,11 +7,21 @@ Base = declarative_base()
 metadata = Base.metadata
 
 
+class DataAdd(Base):
+    __tablename__ = 'data_add'
+
+    id = Column(BigInteger, primary_key=True, comment='事件id')
+    task_id = Column(BigInteger, comment='任务id')
+    plan_id = Column(BigInteger, comment='方案id')
+    event_id = Column(BigInteger, comment='事件id\\r\\n事件id')
+    newsId = Column(BigInteger, comment='新闻id')
+    postId = Column(BigInteger, comment='贴文id')
+
+
 class DataEvent(Base):
     __tablename__ = 'data_event'
 
     id = Column(BigInteger, primary_key=True, comment='事件id')
-    task_id = Column(BigInteger, comment='任务id')
     plan_id = Column(BigInteger, comment='方案id')
     title = Column(TEXT, comment='事件标题')
     introduce = Column(TEXT, comment='事件摘要，这里最好可以将关键词进行高亮显示，加入<em></em>标签')
@@ -19,7 +29,7 @@ class DataEvent(Base):
     postIds = Column(TEXT, comment='所包含的贴文idList')
     is_add = Column(TINYINT, comment='是否流转进入业务数据库')
     summary = Column(TEXT, comment='AI总结')
-    style = Column(String(255))
+    style = Column(VARCHAR(255), comment='事件类型，ai生成')
     prediction = Column(TEXT, comment='发展预测')
 
 
@@ -44,7 +54,9 @@ class DataNew(Base):
     emotion = Column(Integer, comment='情感 0正面 1负面 2中立')
     is_emotional_analysed = Column(TINYINT, comment='是否进行过情感分析 初始为0 情感分析后请置1')
     is_es_add = Column(TINYINT, server_default=text("'0'"), comment='是否上传到es')
-    images = Column(Text)
+    images = Column(TEXT)
+    screenshot_origin = Column(TEXT)
+    images_origin = Column(TEXT)
 
 
 class DataPerson(Base):
@@ -77,7 +89,7 @@ class DataSocialComment(Base):
     create_date = Column(DateTime)
     del_flag = Column(TINYINT, comment='0：未删除    1：删除')
     uid = Column(VARCHAR(255), comment='人员id')
-    post_id = Column(BigInteger, comment='帖子id')
+    post_id = Column(TEXT, comment='帖子id')
     comment_Uid = Column(VARCHAR(255), comment='评论人id')
     comment_Name = Column(VARCHAR(255), comment='评论人名')
     comment_Avatar = Column(TEXT, comment='评论人头像')
@@ -87,6 +99,7 @@ class DataSocialComment(Base):
     comment_Time = Column(DateTime, comment='评论时间')
     add_Time = Column(DateTime, comment='添加时间')
     platform = Column(VARCHAR(255), comment='平台')
+    comment_Avatar_origin = Column(TEXT)
 
 
 class DataSocialPost(Base):
@@ -113,7 +126,9 @@ class DataSocialPost(Base):
     emotion = Column(Integer, comment='0：正面 1：负面 2：中立 ')
     is_Emotional_Analysed = Column(TINYINT, comment='是否进行过情感分析 是1 否0')
     is_es_add = Column(TINYINT)
-    images = Column(Text)
+    images = Column(TEXT)
+    post_id = Column(VARCHAR(255))
+    screenshot_origin = Column(VARCHAR(255))
 
 
 class DataTask(Base):
@@ -124,5 +139,6 @@ class DataTask(Base):
     news_id_list = Column(TEXT, comment='List<newsId>')
     post_id_list = Column(TEXT, comment='List<postId>')
     status = Column(Integer, comment='0未完成 1模型已完成待接收 2接收完毕')
-    create_date = Column(DateTime)
+    create_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"), comment='创建时间')
     keywords = Column(VARCHAR(255), comment='检索关键词')
+    update_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), comment='修改时间')

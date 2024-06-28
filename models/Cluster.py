@@ -2,6 +2,7 @@
 # @ModuleName: Cluster
 # @Author: ximo
 # @Time: 2024/5/10 10:53
+import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.decomposition import PCA
@@ -20,11 +21,11 @@ class Cluster():
         self.TEXT_EMB_MODEL_PATH = TEXT_EMB_MODEL_PATH
         self.POS_MODEL_PATH = POS_MODEL_PATH
 
-    def load_text_emb(self):
+    def load_text_emb(self, device='cuda:0'):
         self.model = SentenceTransformer(self.TEXT_EMB_MODEL_PATH)
 
     def load_pos_model(self):
-        self.pos_task = Taskflow("pos_tagging", model="lac", mode="fast", task_path=self.POS_MODEL_PATH,device_id=0)
+        self.pos_task = Taskflow("pos_tagging", model="lac", mode="fast", task_path=self.POS_MODEL_PATH, device_id=0)
 
     def get_embedding(self, corpus):
         corpus_embeddings = self.model.encode(corpus)
@@ -138,3 +139,44 @@ class Cluster():
             if r[1] in usage:
                 save_result.append(r[0])
         return save_result
+
+    @staticmethod
+    def cosine_similarity(vectors1, vectors2):
+        dot_product = np.dot(vectors1, vectors2.T)
+        norm_vectors1 = np.linalg.norm(vectors1, axis=1, keepdims=True)
+        norm_vectors2 = np.linalg.norm(vectors2, axis=1, keepdims=True)
+        similarity = dot_product / (norm_vectors1 * norm_vectors2.T)
+        return similarity
+
+    def similarity(self, source, target, threshold=0.1, use_emd=True):
+        if isinstance(source, str):
+            source = [source]
+        if isinstance(target, str):
+            target = [target]
+        if use_emd:
+            source_emd = self.get_embedding(source)
+            target_emd = self.get_embedding(target)
+        else:
+            source_emd = source
+            target_emd = target
+        similarity = self.cosine_similarity(source_emd, target_emd)
+        max_indexs = np.argmax(np.array(similarity), axis=1)
+        max_indexs_r = []
+        max_score = []
+        for i, index in enumerate(max_indexs):
+            max_score.append(similarity[i][index])
+            if similarity[i][index] > threshold:
+                max_indexs_r.append(index)
+            else:
+                max_indexs_r.append(len(target))
+        # print(max_indexs_r, max_score)
+        return max_indexs_r, max_score
+
+
+if __name__ == '__main__':
+    cluster = Cluster()
+    cluster.load_text_emb()
+    source = ["厄尔尼诺问题"]
+    target = ["中俄联手推动军事技术合作", "中俄签署大规模经济合作协议", "普京访问强化中俄文化交流",
+              "中俄联手应对气候变化"]
+    cluster.similarity(source, target, 0.1)
