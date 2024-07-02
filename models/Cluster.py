@@ -22,7 +22,7 @@ class Cluster():
         self.POS_MODEL_PATH = POS_MODEL_PATH
 
     def load_text_emb(self, device='cuda:0'):
-        self.model = SentenceTransformer(self.TEXT_EMB_MODEL_PATH)
+        self.model = SentenceTransformer(self.TEXT_EMB_MODEL_PATH,device=device)
 
     def load_pos_model(self):
         self.pos_task = Taskflow("pos_tagging", model="lac", mode="fast", task_path=self.POS_MODEL_PATH, device_id=0)

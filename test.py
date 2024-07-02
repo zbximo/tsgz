@@ -51,8 +51,6 @@ import os
 #
 
 
-
-
 # for i in similar_news_list:
 #     print(i)
 # q_session.commit()
@@ -66,10 +64,10 @@ import os
 # cluster.get_embedding(["我的你的好的"]*100).tolist()
 
 
-
 from services_pro.TaskService import TaskService
 from services_pro.NewsService import NewsService
 from services_pro.SocialPostService import SocialPostService
+
 #
 os.environ["tsgz_mode"] = "test_v2"
 ts = TaskService("test")

@@ -3,10 +3,12 @@
 # @Author: ximo
 # @Time: 2024/5/9 11:12
 import os
+import random
 import subprocess
 from db.database import dbTools
 import time
 import threading
+
 
 def db2model():
     db = dbTools()
@@ -63,28 +65,34 @@ class SnowFlake(object):
             timestamp = self.current_timestamp()
         return timestamp
 
+    # def generate_(self):
+    #     with self.lock:  # Ensure thread safety
+    #         timestamp = self.current_timestamp()
+    #         while True:
+    #             if timestamp < self.last_timestamp:
+    #                 continue
+    #                 # raise ValueError("Clock moved backwards. Refusing to generate ID for {} milliseconds".format(
+    #                 #     self.last_timestamp - timestamp))
+    #
+    #             if timestamp == self.last_timestamp:
+    #                 self.sequence = (self.sequence + 1) & self.sequence_mask
+    #                 if self.sequence == 0:
+    #                     timestamp = self.wait_next_millis(self.last_timestamp)
+    #             else:
+    #                 self.sequence = 0
+    #
+    #             self.last_timestamp = timestamp
+    #
+    #             _id = ((timestamp - self.tw_epoch) << (self.worker_id_bits + self.datacenter_id_bits + self.sequence_bits)) | (
+    #                     (self.datacenter_id << self.worker_id_bits) | self.worker_id << self.sequence_bits | self.sequence)
+    #             return _id
     def generate(self):
-        with self.lock:  # Ensure thread safety
-            timestamp = self.current_timestamp()
-            while True:
-                if timestamp < self.last_timestamp:
-                    continue
-                    # raise ValueError("Clock moved backwards. Refusing to generate ID for {} milliseconds".format(
-                    #     self.last_timestamp - timestamp))
+        random_number = random.randint(100, 999)
 
-                if timestamp == self.last_timestamp:
-                    self.sequence = (self.sequence + 1) & self.sequence_mask
-                    if self.sequence == 0:
-                        timestamp = self.wait_next_millis(self.last_timestamp)
-                else:
-                    self.sequence = 0
-
-                self.last_timestamp = timestamp
-
-                _id = ((timestamp - self.tw_epoch) << (self.worker_id_bits + self.datacenter_id_bits + self.sequence_bits)) | (
-                        (self.datacenter_id << self.worker_id_bits) | self.worker_id << self.sequence_bits | self.sequence)
-                return _id
-
+        t = time.time()
+        tt = int(round(t * 1000000))
+        _id = int(f"{tt}{random_number}")
+        return _id
 
 
 if __name__ == '__main__':

@@ -2,13 +2,14 @@
 # @ModuleName: TaskService
 # @Author: ximo
 # @Time: 2024/5/9 11:04
+import copy
+import re
 import time
 
 from utils.Tools import *
 from sqlalchemy.orm import Query
 from sqlalchemy import func, or_, and_, desc, case
 from collections import Counter
-
 from db.database import dbTools
 from db.entity import *
 from models.Cluster import *
@@ -81,6 +82,8 @@ class TaskService():
                 seg_list = jieba.cut(data)
                 words = [word for word in seg_list if word not in stop_words]
                 words = [word for word in words if not word.isdigit()]
+                words = [word for word in words if not re.fullmatch(r'[a-zA-Z]+', word)]
+
                 word_counts = Counter(words)
                 top_words = [word for word, count in word_counts.most_common(3)]
                 filters = [DataSocialPost.title.contains(word) for word in top_words]
@@ -115,22 +118,26 @@ class TaskService():
         #     stop_words = f.read().splitlines()
         stop_words = get_stopwords()
         cluster = Cluster()
-        cluster.load_text_emb(device='cpu')
+        cluster.load_text_emb(device='cuda:1')
         # cluster.load_pos_model()
         snowflake = SnowFlake()
 
         for task in task_result:
             self.log_pro.info(f'{task.id=} start')
-
+            del_session = self.db.get_new_session()
+            del_session.query(DataAdd).filter(DataAdd.task_id == task.id).delete()
+            del_session.commit()
+            del_session.close()
             task: DataTask
             post_id_list = eval(task.post_id_list) if task.post_id_list else None
             new_id_list = eval(task.news_id_list) if task.news_id_list else None
-            events = None
             if new_id_list is not None and len(new_id_list) != 0:
                 news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
                 news_list = news_query.all()
                 news_zh_titles = [j.title for j in news_list]
-                events = session.query(DataEvent).filter(
+                e_session = self.db.get_new_session()
+
+                events = e_session.query(DataEvent).filter(
                     DataEvent.plan_id == task.plan_id).order_by(
                     case(
                         [(DataEvent.title == '非事件信息', 1)],
@@ -138,9 +145,8 @@ class TaskService():
                     ).asc(),
                 ).all()
                 event_titles = [j.title for j in events]
-                # 计算事件与新闻的相似度，排除非事件信息
-                # print(len(news_zh_titles), len(event_titles))
 
+                # 计算事件与新闻的相似度，排除非事件信息
                 max_indexs, max_score = cluster.similarity(news_zh_titles, event_titles[:-1], 0.2)
                 data_by_event = {}  # {"event_id":[news_id, news_id, ...]}
                 titles_data_by_event = {}
@@ -149,7 +155,6 @@ class TaskService():
                 add_session = self.db.get_new_session()
                 for i, idx in enumerate(max_indexs):
                     dataAddid = snowflake.generate()
-                    # print(dataAddid)
                     dataAdd = DataAdd()
                     dataAdd.id = dataAddid
                     dataAdd.task_id = task.id
@@ -167,6 +172,7 @@ class TaskService():
                         data_by_event[events[idx].id].append(news_list[i].id)
                         titles_data_by_event[events[idx].id].append(news_list[i].title)
                 add_session.close()
+                e_session.close()
 
                 # 添加data_event表
                 q_session = self.db.get_new_session()
@@ -179,7 +185,9 @@ class TaskService():
                         newsIds.extend(v)
                     newsIds = list(set(newsIds))
                     event.newsIds = str(newsIds)
+                q_session.commit()
                 q_session.close()
+
                 # 相似新闻
                 """
                 1. 按event_id查询
@@ -189,7 +197,6 @@ class TaskService():
                 q_session = self.db.get_new_session()
 
                 for k, v in data_by_event.items():
-                    # print(k, len(v), time.time())
                     DataSimilars = q_session.query(DataSimilar).filter(DataSimilar.event_id == k).all()
                     DataSimilarsIds = [i.id for i in DataSimilars]
                     DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]
@@ -212,7 +219,6 @@ class TaskService():
                             max_similar_score = threshold
                             # 遍历找最大值
                             for ds_id, dsnewsids in zip(DataSimilarsIds, DataSimilarsNewsIds):
-                                print(f'{k=}, {i=}, {ds_id=}', f'{len(dsnewsids)=}')
                                 similar_news = q_session.query(DataNew.title).filter(
                                     DataNew.id.in_(dsnewsids)).all()
                                 similar_news_list = [title[0] for title in similar_news]
@@ -251,15 +257,31 @@ class TaskService():
                 q_session.close()
 
             if post_id_list is not None and len(post_id_list) != 0:
-                if events is None:
-                    events = session.query(DataEvent).filter(
-                        DataEvent.plan_id == task.plan_id).order_by(
-                        case(
-                            [(DataEvent.title == '非事件信息', 1)],
-                            else_=0
-                        ).asc(),
-                    ).all()
+                events = session.query(DataEvent).filter(
+                    DataEvent.plan_id == task.plan_id).order_by(
+                    case(
+                        [(DataEvent.title == '非事件信息', 1)],
+                        else_=0
+                    ).asc(),
+                ).all()
+                post_id_list_retain = copy.deepcopy(post_id_list)
                 for e in events:
+                    if e.title == "非事件信息":
+                        session_a = self.db.get_new_session()
+                        for p_id in post_id_list_retain:
+                            dataAdd = DataAdd()
+                            dataAdd.id = snowflake.generate()
+                            dataAdd.task_id = task.id
+                            dataAdd.plan_id = task.plan_id
+                            dataAdd.postId = p_id
+                            dataAdd.event_id = e.id
+                            session_a.add(dataAdd)
+                            session_a.commit()
+                        session_a.close()
+                        break
+                    if e.newsIds is None:
+                        continue
+
                     e_news = session.query(DataNew.title).filter(
                         DataNew.id.in_(eval(e.newsIds))).all()
                     e_news = [e_news_title[0] for e_news_title in e_news]
@@ -267,21 +289,39 @@ class TaskService():
                     seg_list = jieba.cut(data)
                     words = [word for word in seg_list if word not in stop_words and len(word) > 1]
                     words = [word for word in words if not word.isdigit()]
+                    words = [word for word in words if not re.fullmatch(r'[a-zA-Z]+', word)]
 
                     word_counts = Counter(words)
                     top_words = [word for word, count in word_counts.most_common(3)]
-                    print(top_words)
+                    self.log_pro.info(f'{task.id=}, {top_words=}')
 
                     filters = [DataSocialPost.title.contains(word) for word in top_words]
                     session_p = self.db.get_new_session()
                     post_query = session_p.query(DataSocialPost.id).filter(DataSocialPost.id.in_(post_id_list)) \
                         .filter(and_(*filters)).all()
+                    if len(post_query) == 0:
+                        continue
+                    add_postId_list = [p[0] for p in post_query]
+                    session_a = self.db.get_new_session()
+
+                    for add_post_id in add_postId_list:
+                        try:
+                            post_id_list_retain.remove(add_post_id)
+                        except Exception:
+                            pass
+                        dataAdd = DataAdd()
+                        dataAdd.id = snowflake.generate()
+                        dataAdd.task_id = task.id
+                        dataAdd.plan_id = task.plan_id
+                        dataAdd.postId = add_post_id
+                        dataAdd.event_id = e.id
+                        session_a.add(dataAdd)
+                        session_a.commit()
+                    session_a.close()
                     postIds = eval(e.postIds)
-                    print(postIds)
-                    postIds.extend([p[0] for p in post_query])
+                    postIds.extend(add_postId_list)
                     postIds = list(set(postIds))
                     e.postIds = str(postIds)
-                    print(postIds)
                     session_p.close()
                     session.commit()
             task.status = 1
