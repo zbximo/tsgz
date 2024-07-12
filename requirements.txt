@@ -1,10 +1,15 @@
+torch==2.3.0
+paddlepaddle-gpu==2.6.1
 Flask==3.0.3
 jieba==0.42.1
 paddlenlp==2.6.0
 scikit_learn==1.4.2
+transformers==4.40.2
 sentence_transformers==2.7.0
 SQLAlchemy==1.4.52
 sshtunnel==0.4.0
 tqdm==4.66.4
-transformers==4.40.2
-torch==2.3.0
+pymysql==1.1.0
+apscheduler==3.10.4
+
+

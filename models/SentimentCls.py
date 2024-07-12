@@ -11,7 +11,8 @@ from paddlenlp import Taskflow
 
 
 class SentimentCls(object):
-    def __init__(self, MODEL_PATH=config.MODEL_CONFIG["sentiment"], ZERO_SHOT=config.MODEL_CONFIG["event_cls"]):
+    def __init__(self, MODEL_PATH=config.MODEL_CONFIG["sentiment"], ZERO_SHOT=config.MODEL_CONFIG["utc-base"],
+                 ):
         self.MODEL_PATH = MODEL_PATH
 
         self.sentiment_classifier = pipeline(
@@ -23,8 +24,8 @@ class SentimentCls(object):
 
         self.ZERO_SHOT = ZERO_SHOT
         schema = ["涉及中国", "不涉及中国"]
-
-        self.cls = Taskflow("zero_shot_text_classification", schema=schema, single_label=True, device_id=0)
+        self.cls = Taskflow("zero_shot_text_classification", schema=schema, single_label=True, device_id=0,
+                            task_path=self.ZERO_SHOT)
 
     def predict(self, original_titles, titles):
         """
@@ -48,6 +49,10 @@ class SentimentCls(object):
 
         for i, j in zip(in_china, result):
             label1 = i["predictions"][0]["label"]
+            if i["predictions"][0]["score"] > 0.7 and label1 == "涉及中国":
+                label1 = "涉及中国"
+            else:
+                label1 = "不涉及中国"
             label2 = j["label"] if j["score"] > 0.7 else "neutral"
             # print(i, j)
             if label1 == "不涉及中国":
@@ -59,9 +64,7 @@ class SentimentCls(object):
 
 
 if __name__ == '__main__':
-    data = ["Zhejiang Province held the Olympic Games today", " ",
-            "General Secretary Xi visited Hungary",
-            "Li Qiang died for some reason at the age of 66, and everyone looked unhappy"]
-    titles = ["浙江省今日举行奥运会", " ", "习总书记到访匈牙利", "李强因故去世, 享年66岁，大家面色都比较难看"]
+    data = ["Zhejiang Province held the Olympic Games today", " ", ]
+    titles = ["江西省气象台变更暴雨橙色预警信号- DoNews快讯", " ", ]
     d = SentimentCls().predict(data, titles)
     print(d)

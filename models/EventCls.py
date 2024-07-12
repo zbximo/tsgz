@@ -9,7 +9,7 @@ import config
 
 
 class EventCls():
-    def __init__(self, MODEL_PATH=config.MODEL_CONFIG["event_cls"]):
+    def __init__(self, MODEL_PATH=config.MODEL_CONFIG["utc-base"]):
         self.MODEL_PATH = MODEL_PATH
         schema = ["政治变动", "军事冲突", "科技创新", "经济发展", "文化娱乐", "自然灾害", "事故灾难", "公共卫生",
                   "社会安全"]

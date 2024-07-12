@@ -22,7 +22,7 @@ class Cluster():
         self.POS_MODEL_PATH = POS_MODEL_PATH
 
     def load_text_emb(self, device='cuda:0'):
-        self.model = SentenceTransformer(self.TEXT_EMB_MODEL_PATH,device=device)
+        self.model = SentenceTransformer(model_name_or_path=self.TEXT_EMB_MODEL_PATH,device=device)
 
     def load_pos_model(self):
         self.pos_task = Taskflow("pos_tagging", model="lac", mode="fast", task_path=self.POS_MODEL_PATH, device_id=0)
@@ -34,7 +34,7 @@ class Cluster():
     def cluster_sentences(self, corpus, threshold):
         """
         embedding and clustering
-        :param threshold:
+        :param threshold: 欧式距离, 越小相似度越高
         :param corpus: List or Str
         :return: Dict{Cluster_id: List[Sentence_id]}
         """
@@ -149,6 +149,14 @@ class Cluster():
         return similarity
 
     def similarity(self, source, target, threshold=0.1, use_emd=True):
+        """
+
+        :param source:
+        :param target: 事件标题
+        :param threshold: 采用的是cosine, 相似度阈值越大相似度越高
+        :param use_emd:
+        :return:
+        """
         if isinstance(source, str):
             source = [source]
         if isinstance(target, str):
@@ -176,7 +184,11 @@ class Cluster():
 if __name__ == '__main__':
     cluster = Cluster()
     cluster.load_text_emb()
-    source = ["厄尔尼诺问题"]
-    target = ["中俄联手推动军事技术合作", "中俄签署大规模经济合作协议", "普京访问强化中俄文化交流",
-              "中俄联手应对气候变化"]
-    cluster.similarity(source, target, 0.1)
+    corpus = ["中俄联手推动军事技术合作","中俄联手推动军事合作","中俄推动军事技术合作", "中俄签署大规模经济合作协议", "普京访问强化中俄文化交流"]
+    # x = cluster.cluster_sentences(corpus,threshold=0.3)
+    # print(x)
+    # x = cluster.similarity
+    source = ["日本政府采用高科技处理核废水","日本认为排放处理过的核废水是安全的","日本政府决定将核废水排入大海"]
+    target = ["日本政府在核污染问题上的政策变化","各国如何应对日本核污染问题","科技如何帮助处理日本核污染问题"]
+    x = cluster.similarity(source, target, 0.7)
+    print(x)

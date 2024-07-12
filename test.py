@@ -70,5 +70,5 @@ from services_pro.SocialPostService import SocialPostService
 
 #
 os.environ["tsgz_mode"] = "test_v2"
-ts = TaskService("test")
+ts = TaskService("test",use_ssh=True)
 ts.analyze_task_v2()

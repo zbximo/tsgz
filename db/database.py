@@ -27,10 +27,14 @@ class dbTools(object):
         if use_ssh:
             host, port = self.open_ssh()
         url = 'mysql+pymysql://%s:%s@%s:%d/%s' % (user, pwd, host, port, db)
-        print(url)
         # engine = create_engine(url,  echo=False)
 
         engine = create_engine(url, max_overflow=200, pool_size=100, echo=False)
+        try:
+            engine.connect()
+        except Exception as e:
+            print(f"Connection failed: {e}")
+            exit(1)
         self.engine = engine
         self.DbSession = sessionmaker(bind=engine)
 

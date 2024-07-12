@@ -19,9 +19,9 @@ import os
 
 
 class TaskService():
-    def __init__(self, mode='pro'):
+    def __init__(self, mode='pro', use_ssh=False):
         self.db = dbTools(mode)
-        self.db.open(use_ssh=True)
+        self.db.open(use_ssh=use_ssh)
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
     def analyze_task(self):
@@ -47,7 +47,11 @@ class TaskService():
             task: DataTask
             post_id_list = eval(task.post_id_list) if task.post_id_list else None
             new_id_list = eval(task.news_id_list) if task.news_id_list else None
-
+            if len(new_id_list) == 0:
+                task.status = 1
+                self.log_pro.info(f'{task.id=} over')
+                session.commit()
+                continue
             # cluster and topic model for news
             news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
             news = news_query.all()
@@ -67,7 +71,7 @@ class TaskService():
                 news_ori_titles = [news[index].original_title for index in v]
                 dataEvent.newsIds = str(news_ids)
                 # 识别相似新闻
-                cluster_news_result = cluster.cluster_sentences(news_ori_titles, threshold=1) \
+                cluster_news_result = cluster.cluster_sentences(news_ori_titles, threshold=0.3) \
                     if len(news_ori_titles) > 1 else {0: [0]}
                 for ck, cv in cluster_news_result.items():
                     dataSimilar = DataSimilar()
@@ -118,7 +122,7 @@ class TaskService():
         #     stop_words = f.read().splitlines()
         stop_words = get_stopwords()
         cluster = Cluster()
-        cluster.load_text_emb(device='cuda:1')
+        cluster.load_text_emb(device='cuda:0')
         # cluster.load_pos_model()
         snowflake = SnowFlake()
 
@@ -147,7 +151,7 @@ class TaskService():
                 event_titles = [j.title for j in events]
 
                 # 计算事件与新闻的相似度，排除非事件信息
-                max_indexs, max_score = cluster.similarity(news_zh_titles, event_titles[:-1], 0.2)
+                max_indexs, max_score = cluster.similarity(news_zh_titles, event_titles[:-1], 0.7)
                 data_by_event = {}  # {"event_id":[news_id, news_id, ...]}
                 titles_data_by_event = {}
                 # ori_data_by_event = {}
@@ -201,7 +205,7 @@ class TaskService():
                     DataSimilarsIds = [i.id for i in DataSimilars]
                     DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]
                     if len(DataSimilars) == 0:
-                        cluster_news_result = cluster.cluster_sentences(titles_data_by_event[k], threshold=1) \
+                        cluster_news_result = cluster.cluster_sentences(titles_data_by_event[k], threshold=0.3) \
                             if len(v) > 1 else {0: [0]}
                         for ck, cv in cluster_news_result.items():
                             dataSimilar = DataSimilar()

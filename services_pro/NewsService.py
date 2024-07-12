@@ -14,9 +14,9 @@ import constants
 import os
 
 class NewsService():
-    def __init__(self, mode='pro'):
+    def __init__(self, mode='pro',use_ssh=False):
         self.db = dbTools(mode)
-        self.db.open(use_ssh=True)
+        self.db.open(use_ssh=use_ssh)
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
     def senti_news(self):
