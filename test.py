@@ -43,20 +43,29 @@ import jieba
 import log_pro
 import os
 
-# mode = 'test'
-# db = dbTools(mode)
-# db.open(use_ssh=True)
-# q_session = db.get_new_session()
-# event = q_session.query(DataNew).filter(DataNew.id.in_([1802700762415558658, 1802737769285660673, 1802739316941893633])).all()
+mode = 'test'
+db = dbTools(mode)
+db.open(use_ssh=True)
+q_session = db.get_new_session()
+new = q_session.query(DataEvent).filter(and_(DataEvent.prediction == None, DataEvent.title != "非事件信息")).all()
+for i in new:
+    print(i.__dict__)
+q_session.close()
+
+# news = q_session.query(DataNew).filter(DataNew.id.in_([2, 3, 4])).all()
 #
-
-
-# for i in similar_news_list:
-#     print(i)
-# q_session.commit()
-# for i in event:
-#     print(i.plan_id,i.newsIds)
-
+# for i in news:
+#     print(111,i.__dict__)
+#     i.title = str(i.title)[:-1]
+#     q_session.commit()
+#     print(112,i.__dict__)
+# time.sleep(10)
+# for i in news:
+#     print(211,i.__dict__)
+#     i.title = str(i.title)[:-1]
+#     q_session.commit()
+#     print(222,i.__dict__)
+# q_session.close()
 # q_session.commit()
 
 # cluster = Cluster()
@@ -64,11 +73,18 @@ import os
 # cluster.get_embedding(["我的你的好的"]*100).tolist()
 
 
-from services_pro.TaskService import TaskService
-from services_pro.NewsService import NewsService
-from services_pro.SocialPostService import SocialPostService
+# from services_pro.TaskService import TaskService
+# from services_pro.NewsService import NewsService
+# from services_pro.SocialPostService import SocialPostService
+# import time
+# #
+# # #
+# os.environ["tsgz_mode"] = "test_v2"
+# ts = TaskService("test", use_ssh=True)
+# while True:
+#     ts.analyze_task_v2()
+#     time.sleep(60)
 
-#
-os.environ["tsgz_mode"] = "test_v2"
-ts = TaskService("test",use_ssh=True)
-ts.analyze_task_v2()
+
+# from  utils import Tools
+# Tools.db2model()

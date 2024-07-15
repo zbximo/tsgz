@@ -1,6 +1,6 @@
 # coding: utf-8
 from sqlalchemy import BigInteger, Column, DateTime, Integer, text
-from sqlalchemy.dialects.mysql import TEXT, TINYINT, VARCHAR
+from sqlalchemy.dialects.mysql import LONGTEXT, TEXT, TINYINT, VARCHAR
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -25,12 +25,14 @@ class DataEvent(Base):
     plan_id = Column(BigInteger, comment='方案id')
     title = Column(TEXT, comment='事件标题')
     introduce = Column(TEXT, comment='事件摘要，这里最好可以将关键词进行高亮显示，加入<em></em>标签')
-    newsIds = Column(TEXT, comment='所包含的新闻idList')
-    postIds = Column(TEXT, comment='所包含的贴文idList')
+    newsIds = Column(LONGTEXT, comment='所包含的新闻idList')
+    postIds = Column(LONGTEXT, comment='所包含的贴文idList')
     is_add = Column(TINYINT, comment='是否流转进入业务数据库')
     summary = Column(TEXT, comment='AI总结')
     style = Column(VARCHAR(255), comment='事件类型，ai生成')
     prediction = Column(TEXT, comment='发展预测')
+    create_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    update_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"))
 
 
 class DataNew(Base):
@@ -136,8 +138,8 @@ class DataTask(Base):
 
     id = Column(BigInteger, primary_key=True)
     plan_id = Column(BigInteger)
-    news_id_list = Column(TEXT, comment='List<newsId>')
-    post_id_list = Column(TEXT, comment='List<postId>')
+    news_id_list = Column(LONGTEXT, comment='List<newsId>')
+    post_id_list = Column(LONGTEXT, comment='List<postId>')
     status = Column(Integer, comment='0未完成 1模型已完成待接收 2接收完毕')
     create_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"), comment='创建时间')
     keywords = Column(VARCHAR(255), comment='检索关键词')

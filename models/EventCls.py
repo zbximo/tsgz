@@ -31,5 +31,5 @@ class EventCls():
 
 if __name__ == '__main__':
     ec = EventCls()
-    result = ec.predict("2023年3月8日，中国妇女权益保护法实施20周年。")
+    result = ec.predict(["特朗普与拜登政策主张","美国大选得票率","中国兴奋剂"])
     print(result)

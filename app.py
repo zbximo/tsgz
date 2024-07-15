@@ -18,21 +18,19 @@ app = Flask(__name__)
 def run(ssh, mode):
     os.environ["tsgz_mode"] = mode
     print(f"{ssh=},{mode=}")
+    scheduler = BackgroundScheduler()
+
     ts = TaskService(mode, use_ssh=ssh)
     # ts.run_all_time_v2()
-    scheduler = BackgroundScheduler()
     scheduler.add_job(ts.analyze_task_v2, 'interval', minutes=1)
-    scheduler.start()
+    # scheduler.start()
     ns = NewsService(mode, use_ssh=ssh)
     # ns.run_all_time()
-    scheduler1 = BackgroundScheduler()
-    scheduler1.add_job(ns.senti_news, 'interval', minutes=1)
-    scheduler1.start()
+    scheduler.add_job(ns.senti_news, 'interval', minutes=1)
     sps = SocialPostService(mode, use_ssh=ssh)
     # sps.run_all_time()
-    scheduler2 = BackgroundScheduler()
-    scheduler2.add_job(sps.senti_post, 'interval', minutes=1)
-    scheduler2.start()
+    scheduler.add_job(sps.senti_post, 'interval', minutes=1)
+    scheduler.start()
 
 
 @app.route("/tasks", methods=["GET"])

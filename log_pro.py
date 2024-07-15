@@ -15,17 +15,17 @@ def log_with_name(name):
     logger = logging.getLogger('{}_logger'.format(name))
 
     logger.setLevel(logging.DEBUG)
+    if not logger.handlers:
+        test_log = logging.FileHandler('{}.log'.format(name), 'a', encoding='utf-8')
 
-    test_log = logging.FileHandler('{}.log'.format(name), 'a', encoding='utf-8')
+        test_log.setLevel(logging.DEBUG)
 
-    test_log.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(
+            '%(asctime)s - %(filename)s - line:%(lineno)d - %(levelname)s - %(message)s -%(process)s')
 
-    formatter = logging.Formatter(
-        '%(asctime)s - %(filename)s - line:%(lineno)d - %(levelname)s - %(message)s -%(process)s')
+        test_log.setFormatter(formatter)
 
-    test_log.setFormatter(formatter)
-
-    logger.addHandler(test_log)
+        logger.addHandler(test_log)
     return logger
 
 

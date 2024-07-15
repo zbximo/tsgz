@@ -29,22 +29,23 @@ def main():
     os.environ["tsgz_mode"] = mode
     if 'cluster' in name:
         ts = TaskService(mode, use_ssh=True)
-        # ts.run_all_time_v2()
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(ts.analyze_task_v2, 'interval', minutes=1)
-        scheduler.start()
+        ts.run_all_time_v2()
+        # scheduler = BackgroundScheduler()
+        # ts.analyze_task_v2()
+        # scheduler.add_job(ts.analyze_task_v2, 'cron', second='0/10')
+        # scheduler.start()
     if 'new' in name:
         ns = NewsService(mode, use_ssh=True)
-        # ns.run_all_time()
-        scheduler1 = BackgroundScheduler()
-        scheduler1.add_job(ns.senti_news, 'interval', minutes=1)
-        scheduler1.start()
+        ns.run_all_time()
+        # scheduler1 = BackgroundScheduler()
+        # scheduler1.add_job(ns.senti_news, 'interval', minutes=1)
+        # scheduler1.start()
     if 'post' in name:
         sps = SocialPostService(mode, use_ssh=True)
-        # sps.run_all_time()
-        scheduler2 = BackgroundScheduler()
-        scheduler2.add_job(sps.senti_post, 'interval', minutes=1)
-        scheduler2.start()
+        sps.run_all_time()
+        # scheduler2 = BackgroundScheduler()
+        # scheduler2.add_job(sps.senti_post, 'interval', minutes=1)
+        # scheduler2.start()
 
 
 if __name__ == '__main__':
