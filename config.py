@@ -12,10 +12,19 @@ SSH_CONFIG = {
     'password': 'tsgz2024',
 }
 
+# # 数据库连接配置
+# DB_CONFIG = {
+#     'host': '127.0.0.1',
+#     'port': 3306,
+#     'username': 'root',
+#     'password': 'tsgz2024',
+#     'database': 'situation_system'
+# }
+
 # 数据库连接配置
 DB_CONFIG = {
-    'host': '127.0.0.1',
-    'port': 3306,
+    'host': '10.63.146.221',
+    'port': 13306,
     'username': 'root',
     'password': 'tsgz2024',
     'database': 'situation_system'

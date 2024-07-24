@@ -6,6 +6,8 @@ import copy
 import re
 import time
 from tqdm import tqdm
+
+from models.EventCls import EventCls
 from utils.Tools import *
 from sqlalchemy.orm import Query
 from sqlalchemy import func, or_, and_, desc, case
@@ -121,6 +123,8 @@ class TaskService():
         # with open("../utils/baidu_stopwords.txt", "r") as f:
         #     stop_words = f.read().splitlines()
         stop_words = get_stopwords()
+        EC = EventCls()
+
         cluster = Cluster()
         cluster.load_text_emb(device='cuda:0')
         # cluster.load_pos_model()
@@ -134,7 +138,7 @@ class TaskService():
             task: DataTask
             post_id_list = eval(task.post_id_list) if task.post_id_list else None
             new_id_list = eval(task.news_id_list) if task.news_id_list else None
-            print(f'{len(post_id_list)=}',f'{len(new_id_list)=}')
+            print(f'{len(post_id_list)=}', f'{len(new_id_list)=}')
 
             if new_id_list is not None and len(new_id_list) != 0:
                 news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
@@ -150,8 +154,14 @@ class TaskService():
                     ).asc(),
                 ).all()
                 event_titles = [j.title for j in events]
-                # 计算事件与新闻的相似度，排除非事件信息
-                max_indexs, max_score = cluster.similarity(news_zh_titles, event_titles[:-1], 0.5)
+                # v1 计算事件与新闻的相似度，排除非事件信息
+                # max_indexs, max_score = cluster.similarity(news_zh_titles, event_titles[:-1], 0.5)
+                # v2 zero_shot
+                schema = event_titles[:-1]
+                schema.append("其他")
+                EC.load(schema)
+                max_indexs, max_score = EC.predict(news_zh_titles)
+
                 data_by_event = {}  # {"event_id":[news_id, news_id, ...]}
                 titles_data_by_event = {}
                 # ori_data_by_event = {}
@@ -177,7 +187,8 @@ class TaskService():
                         titles_data_by_event[events[idx].id].append(news_list[i].title)
                 add_session.close()
                 e_session.close()
-
+                for k, v in data_by_event.items():
+                    self.log_pro.info(f'event id:{k}, news: {len(v)}')
                 # 添加data_event表
                 q_session = self.db.get_new_session()
                 for k, v in data_by_event.items():
@@ -247,41 +258,41 @@ class TaskService():
                                 q_session.add(dataSimilar)
                                 DataSimilarsIds.append(rid)
                                 DataSimilarsNewsIds.append([i])
-                                dsnewsids.append(i) #
-                                similar_news_list.append(t) #
+                                dsnewsids.append(i)  #
+                                similar_news_list.append(t)  #
                         # # slow v1 遍历找最大值
                         # for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
-                            # max_similar_dsid = -1
-                            # max_similar_score = threshold
-                            # for ds_id, dsnewsids in zip(DataSimilarsIds, DataSimilarsNewsIds):
-                            #     similar_news = q_session.query(DataNew.title).filter(
-                            #         DataNew.id.in_(dsnewsids)).all()
-                            #     similar_news_list = [title[0] for title in similar_news]
-                            #
-                            #     dsid = ds_id
-                            #     similar_matrix, score = cluster.similarity(t, similar_news_list,
-                            #                                                threshold=threshold, use_emd=True)
-                            #     if max_similar_score < score[0]:
-                            #         max_similar_score = score[0]
-                            #         max_similar_dsid = dsid
-                            #
-                            # if max_similar_dsid != -1:
-                            #     for ds in DataSimilars:
-                            #         if ds.id == max_similar_dsid:
-                            #             newsIds = eval(ds.news_ids)
-                            #             newsIds.append(i)
-                            #             newsIds = list(set(newsIds))
-                            #             ds.news_ids = str(newsIds)
-                            # else:
-                            #     dataSimilar = DataSimilar()
-                            #     rid = snowflake.generate()
-                            #     dataSimilar.id = rid
-                            #     dataSimilar.plan_id = task.plan_id
-                            #     dataSimilar.news_ids = str([i])
-                            #     dataSimilar.event_id = k
-                            #     q_session.add(dataSimilar)
-                            #     DataSimilarsIds.append(rid)
-                            #     DataSimilarsNewsIds.append([i])
+                        # max_similar_dsid = -1
+                        # max_similar_score = threshold
+                        # for ds_id, dsnewsids in zip(DataSimilarsIds, DataSimilarsNewsIds):
+                        #     similar_news = q_session.query(DataNew.title).filter(
+                        #         DataNew.id.in_(dsnewsids)).all()
+                        #     similar_news_list = [title[0] for title in similar_news]
+                        #
+                        #     dsid = ds_id
+                        #     similar_matrix, score = cluster.similarity(t, similar_news_list,
+                        #                                                threshold=threshold, use_emd=True)
+                        #     if max_similar_score < score[0]:
+                        #         max_similar_score = score[0]
+                        #         max_similar_dsid = dsid
+                        #
+                        # if max_similar_dsid != -1:
+                        #     for ds in DataSimilars:
+                        #         if ds.id == max_similar_dsid:
+                        #             newsIds = eval(ds.news_ids)
+                        #             newsIds.append(i)
+                        #             newsIds = list(set(newsIds))
+                        #             ds.news_ids = str(newsIds)
+                        # else:
+                        #     dataSimilar = DataSimilar()
+                        #     rid = snowflake.generate()
+                        #     dataSimilar.id = rid
+                        #     dataSimilar.plan_id = task.plan_id
+                        #     dataSimilar.news_ids = str([i])
+                        #     dataSimilar.event_id = k
+                        #     q_session.add(dataSimilar)
+                        #     DataSimilarsIds.append(rid)
+                        #     DataSimilarsNewsIds.append([i])
 
                     q_session.commit()
                 q_session.close()
@@ -380,4 +391,3 @@ class TaskService():
 if __name__ == '__main__':
     TS = TaskService()
     TS.run_all_time()
-

@@ -12,15 +12,22 @@ SSH_CONFIG = {
     'password': 'tsgz2024',
 }
 
+# # 数据库连接配置
+# DB_CONFIG = {
+#     'host': '127.0.0.1',
+#     'port': 3306,
+#     'username': 'root',
+#     'password': 'tsgz2024',
+#     'database': 'situation_system'
+# }
 # 数据库连接配置
 DB_CONFIG = {
-    'host': '127.0.0.1',
-    'port': 3306,
+    'host': '10.63.146.221',
+    'port': 33306,
     'username': 'root',
     'password': 'tsgz2024',
     'database': 'situation_system'
 }
-
 # # 模型路径配置
 # MODEL_CONFIG = {
 #     "sentiment": "/mnt/data/users/xhd/xl/models/models--lxyuan--distilbert-base-multilingual-cased-sentiments-student/snapshots/2e33845d25b3ed0c8994ed53adb72566a1d39d79",

@@ -13,7 +13,7 @@ from paddlenlp import Taskflow
 from utils.Tools import *
 import config
 import utils
-
+from transformers import AutoTokenizer
 
 class Cluster():
     def __init__(self, TEXT_EMB_MODEL_PATH=config.MODEL_CONFIG["text_emb"],
@@ -150,7 +150,7 @@ class Cluster():
         similarity = dot_product / (norm_vectors1 * norm_vectors2.T)
         return similarity
 
-    def similarity(self, source, target, threshold=0.1, use_emd=True):
+    def similarity(self, source, target, threshold=0.4, use_emd=True):
         """
 
         :param source:
