@@ -26,7 +26,7 @@ class dbTools(object):
 
         url = 'mysql+pymysql://%s:%s@%s:%d/%s' % (user, pwd, host, port, db)
         # engine = create_engine(url,  echo=False)
-
+        print(url)
         engine = create_engine(url, max_overflow=200, pool_size=100, echo=False)
         try:
             engine.connect()

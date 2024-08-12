@@ -40,5 +40,7 @@ MODEL_CONFIG = {
     "utc-base": get_model_dir("utc-base"),
     "lac": get_model_dir("lac"),
     "cn": get_model_dir("cn"),
-    "emotion": get_model_dir("emotion")
+    "emotion": get_model_dir("emotion"),
+    "bce-embedding-base_v1":get_model_dir("bce-embedding-base_v1"),
+    "bce-reranker-base_v1":get_model_dir("bce-reranker-base_v1")
 }

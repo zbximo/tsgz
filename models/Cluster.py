@@ -5,6 +5,7 @@
 import time
 
 import numpy as np
+from BCEmbedding import EmbeddingModel
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.decomposition import PCA
@@ -15,18 +16,20 @@ import config
 import utils
 from transformers import AutoTokenizer
 
+
 class Cluster():
-    def __init__(self, TEXT_EMB_MODEL_PATH=config.MODEL_CONFIG["text_emb"],
+    def __init__(self, TEXT_EMB_MODEL_PATH=config.MODEL_CONFIG["bce-embedding-base_v1"],
                  POS_MODEL_PATH=config.MODEL_CONFIG["lac"]):
         self.pos_task = None
         self.model = None
         self.TEXT_EMB_MODEL_PATH = TEXT_EMB_MODEL_PATH
         self.POS_MODEL_PATH = POS_MODEL_PATH
 
-    def load_text_emb(self, device='cuda:0'):
-        self.model = SentenceTransformer(model_name_or_path=self.TEXT_EMB_MODEL_PATH, device=device)
+    def load_text_emb(self, device='cuda:1'):
+        self.model = EmbeddingModel(model_name_or_path=config.MODEL_CONFIG["bce-embedding-base_v1"],
+                                    device=device)
 
-    def load_pos_model(self):
+    def load_pos_model(self, device_id=0):
         self.pos_task = Taskflow("pos_tagging", model="lac", mode="fast", task_path=self.POS_MODEL_PATH, device_id=0)
 
     def get_embedding(self, corpus):

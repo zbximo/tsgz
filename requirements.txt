@@ -5,7 +5,7 @@ jieba==0.42.1
 paddlenlp==2.6.0
 paddle2onnx==1.2.1
 scikit_learn==1.4.2
-transformers==4.40.2
+transformers~=4.36.2
 sentence_transformers==2.7.0
 SQLAlchemy==1.4.52
 sshtunnel==0.4.0
@@ -14,3 +14,8 @@ pymysql==1.1.0
 apscheduler==3.10.4
 
 
+
+numpy~=1.26.4
+scikit-learn~=1.4.2
+pymilvus~=2.4.5
+BCEmbedding~=0.1.5

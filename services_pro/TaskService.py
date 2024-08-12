@@ -38,7 +38,7 @@ class TaskService():
         if len(task_result) == 0:
             session.close()
             return 0
-        EC = EventCls()
+
 
         cluster = Cluster()
         cluster.load_text_emb(device='cuda:0')
@@ -58,7 +58,9 @@ class TaskService():
             if new_id_list is not None and len(new_id_list) != 0:
                 news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
                 news_list = news_query.all()
+                insert_data = [{"id": i.id, "title": i.title, "content": i.content} for i in news_list]
                 news_zh_titles = [j.title for j in news_list]
+                news_id = [j.id for j in news_list]
                 e_session = self.db.get_new_session()
 
                 events = e_session.query(DataEvent).filter(
@@ -68,40 +70,31 @@ class TaskService():
                         else_=0
                     ).asc(),
                 ).all()
-                event_titles = [j.title for j in events]
-                # v1 计算事件与新闻的相似度，排除非事件信息
-                # max_indexs, max_score = cluster.similarity(news_zh_titles, event_titles[:-1], 0.5)
-                # v2 zero_shot
-                schema = event_titles[:-1]
-                schema.append("其他")
-                EC.load(schema)
-                max_indexs, max_score = EC.predict(news_zh_titles)
 
-                data_by_event = {}  # {"event_id":[news_id, news_id, ...]}
-                titles_data_by_event = {}
+                event_id_titles = [[j.id, j.title] for j in events]
+                EC = EventCls()
+                EC.insert_milvus(task.plan_id, insert_data)
+                data_by_event, titles_data_by_event = EC.predict(event_id_titles, task.keywords.split(","),
+                                                                 news_zh_titles, news_id)
                 # ori_data_by_event = {}
                 # 遍历添加data_add表
                 add_session = self.db.get_new_session()
-                for i, idx in enumerate(max_indexs):
-                    dataAddid = snowflake.generate()
-                    dataAdd = DataAdd()
-                    dataAdd.id = dataAddid
-                    dataAdd.task_id = task.id
-                    dataAdd.plan_id = task.plan_id
-                    dataAdd.newsId = news_list[i].id
-                    dataAdd.event_id = events[idx].id
-                    add_session.add(dataAdd)
-                    add_session.commit()
+                for e_id, new_ids in data_by_event.items():
+                    for nid in new_ids:
+                        dataAddid = snowflake.generate()
+                        dataAdd = DataAdd()
+                        dataAdd.id = dataAddid
+                        dataAdd.task_id = task.id
+                        dataAdd.plan_id = task.plan_id
+                        dataAdd.newsId = nid
+                        dataAdd.event_id = e_id
+                        add_session.add(dataAdd)
+                        add_session.commit()
 
-                    # 按event_id添加到data_by_event
-                    if events[idx].id not in data_by_event:
-                        data_by_event[events[idx].id] = [news_list[i].id]
-                        titles_data_by_event[events[idx].id] = [news_list[i].title]
-                    else:
-                        data_by_event[events[idx].id].append(news_list[i].id)
-                        titles_data_by_event[events[idx].id].append(news_list[i].title)
                 add_session.close()
                 e_session.close()
+                EC.close()
+                del EC
                 for k, v in data_by_event.items():
                     self.log_pro.info(f'event id:{k}, news: {len(v)}')
                 # 添加data_event表
@@ -215,7 +208,9 @@ class TaskService():
             if post_id_list is not None and len(post_id_list) != 0:
                 posts_query: Query = session.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list))
                 posts_list = posts_query.all()
-                posts_zh_titles = [j.title for j in posts_list]
+                insert_data = [{"id": i.id, "title": i.title} for i in posts_list]
+                post_zh_titles = [j.title for j in posts_list]
+                post_id = [j.id for j in posts_list]
                 e_session = self.db.get_new_session()
 
                 events = e_session.query(DataEvent).filter(
@@ -225,39 +220,31 @@ class TaskService():
                         else_=0
                     ).asc(),
                 ).all()
-                event_titles = [j.title for j in events]
 
-                # zero_shot
-                schema = event_titles[:-1]
-                schema.append("其他")
-                EC.load(schema)
-                max_indexs, max_score = EC.predict(posts_zh_titles)
-
-                data_by_event = {}  # {"event_id":[news_id, news_id, ...]}
-                titles_data_by_event = {}
+                event_id_titles = [[j.id, j.title] for j in events]
+                EC = EventCls()
+                EC.insert_milvus(task.plan_id, insert_data,is_news=False)
+                data_by_event, titles_data_by_event = EC.predict(event_id_titles, task.keywords.split(","),
+                                                                 post_zh_titles, post_id)
                 # ori_data_by_event = {}
                 # 遍历添加data_add表
                 add_session = self.db.get_new_session()
-                for i, idx in enumerate(max_indexs):
-                    dataAddid = snowflake.generate()
-                    dataAdd = DataAdd()
-                    dataAdd.id = dataAddid
-                    dataAdd.task_id = task.id
-                    dataAdd.plan_id = task.plan_id
-                    dataAdd.postId = posts_list[i].id
-                    dataAdd.event_id = events[idx].id
-                    add_session.add(dataAdd)
-                    add_session.commit()
+                for e_id, p_ids in data_by_event.items():
+                    for pid in p_ids:
+                        dataAddid = snowflake.generate()
+                        dataAdd = DataAdd()
+                        dataAdd.id = dataAddid
+                        dataAdd.task_id = task.id
+                        dataAdd.plan_id = task.plan_id
+                        dataAdd.postId = pid
+                        dataAdd.event_id = e_id
+                        add_session.add(dataAdd)
+                        add_session.commit()
 
-                    # 按event_id添加到data_by_event
-                    if events[idx].id not in data_by_event:
-                        data_by_event[events[idx].id] = [posts_list[i].id]
-                        titles_data_by_event[events[idx].id] = [posts_list[i].title]
-                    else:
-                        data_by_event[events[idx].id].append(posts_list[i].id)
-                        titles_data_by_event[events[idx].id].append(posts_list[i].title)
                 add_session.close()
                 e_session.close()
+                EC.close()
+                del EC
                 for k, v in data_by_event.items():
                     self.log_pro.info(f'event id:{k}, posts: {len(v)}')
                 # 添加data_event表
@@ -276,14 +263,13 @@ class TaskService():
 
             task.status = 1
 
-            # print(task.__dict__)
+            print(task.__dict__)
             self.log_pro.info(f'{task.id=} over')
             session.commit()
 
         session.close()
 
         return 1
-
 
     def run_all_time_v2(self):
         while True:
@@ -293,5 +279,7 @@ class TaskService():
 
 
 if __name__ == '__main__':
-    TS = TaskService()
-    TS.run_all_time_v2()
+    os.environ['tsgz_mode'] = "test"
+    TS = TaskService('test')
+    # TS.run_all_time_v2()
+    TS.analyze_task_v2()
