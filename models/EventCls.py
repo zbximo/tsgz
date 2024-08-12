@@ -21,14 +21,16 @@ class EventCls():
         self.cls = Taskflow("zero_shot_text_classification", schema=schema, single_label=True, device_id=0,
                             task_path=self.MODEL_PATH)
 
-    def predict(self, data):
+    def predict(self, data, bs=2):
         if isinstance(data, str):
             data = [data]
         elif isinstance(data, list):
             pass
         else:
             raise ValueError("data type error")
-        result = self.cls(data)
+        result = []
+        for i in range(0, len(data), bs):
+            result.extend(self.cls(data[i:i + bs]))
 
         # max_indexs = []
         # max_score = []
@@ -48,5 +50,5 @@ if __name__ == '__main__':
     EC = EventCls()
     schema = ["美国大选投票统计", "遭遇枪击", "政策主张", "世界羽坛"]
     EC.load(schema)
-    result = EC.predict(["特朗普，被枪击后被护送下台 - 照片捕捉到的事件的样子","aaaa"])
+    result = EC.predict(["特朗普，被枪击后被护送下台 - 照片捕捉到的事件的样子", "aaaa"] * 20)
     print(result)

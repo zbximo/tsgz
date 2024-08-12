@@ -11,16 +11,13 @@ import threading
 
 
 def db2model():
-    db = dbTools()
-    r = db.open_ssh()
-    print(r)
-
+    # db = dbTools()
+    r = ["10.63.146.221", "13306"]
     sqlacodegen_command = f"""
-    /opt/anaconda3/envs/tsgz/bin/sqlacodegen mysql+pymysql://root:tsgz2024@0.0.0.0:{r[1]}/situation_system --tables data_add,data_event,data_news,data_person,data_similar,data_social_comment,data_social_post,data_task --outfile /mnt/data/users/xhd/tsgz/db/entity.py"""
+    /opt/anaconda3/envs/tsgz/bin/sqlacodegen mysql+pymysql://root:tsgz2024@{r[0]}:{r[1]}/situation_system --tables data_add,data_event,data_news,data_person,data_similar,data_social_comment,data_social_post,data_task --outfile /mnt/data/users/xhd/tsgz/db/entity.py"""
     print(sqlacodegen_command)
     result = subprocess.run(sqlacodegen_command, shell=True)
     print(result.returncode)
-    db.close_ssh()
 
 
 def get_stopwords():

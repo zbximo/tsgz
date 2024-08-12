@@ -12,7 +12,7 @@ import os
 app = Flask(__name__)
 
 
-def run(ssh, mode, name):
+def run(mode, name):
     from services_pro.TaskService import TaskService
     from services_pro.NewsService import NewsService
     from services_pro.SocialPostService import SocialPostService
@@ -22,13 +22,13 @@ def run(ssh, mode, name):
         name = ["cluster", "new", "post"]
 
     if 'cluster' in name:
-        ts = TaskService(mode, use_ssh=ssh)
+        ts = TaskService(mode)
         scheduler.add_job(ts.analyze_task_v2, 'interval', minutes=1)
     if 'new' in name:
-        ns = NewsService(mode, use_ssh=ssh)
+        ns = NewsService(mode)
         scheduler.add_job(ns.senti_news, 'interval', minutes=1)
     if 'post' in name:
-        sps = SocialPostService(mode, use_ssh=ssh)
+        sps = SocialPostService(mode)
         scheduler.add_job(sps.senti_post, 'interval', minutes=1)
     scheduler.start()
 
@@ -47,7 +47,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Flask Application')
     parser.add_argument('--host', default='0.0.0.0', help='The host to bind to')
     parser.add_argument('--port', type=int, default=5000, help='The port to bind to')
-    parser.add_argument('--ssh', action='store_true', help='Enable ssh')
     parser.add_argument('--env', type=str, default="test", help='select env', choices=["product", "test"])
     parser.add_argument('--name', type=str, nargs='+', help='name:{cluster, new, post}',
                         choices=["cluster", "new", "post"])
@@ -56,5 +55,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    run(args.ssh, args.env, args.name)
+    run(args.env, args.name)
     app.run(host=args.host, port=args.port)
