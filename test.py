@@ -92,7 +92,7 @@ import os
 
 mode = 'test'
 db = dbTools(mode)
-db.open(use_ssh=False)
+db.open()
 session = db.get_new_session()
 # get tasks
 task_query = session.query(DataTask).filter(DataTask.id == 1813151490638012417)

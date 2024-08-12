@@ -28,26 +28,26 @@ def main():
     from services_pro.SocialPostService import SocialPostService
     os.environ["tsgz_mode"] = mode
     # if 'cluster' in name:
-    #     ts = TaskService(mode, use_ssh=False)
+    #     ts = TaskService(mode)
     #     ts.run_all_time_v2()
     #
     # if 'new' in name:
-    #     ns = NewsService(mode, use_ssh=False)
+    #     ns = NewsService(mode)
     #     ns.run_all_time()
     #
     # if 'post' in name:
-    #     sps = SocialPostService(mode, use_ssh=False)
+    #     sps = SocialPostService(mode)
     #     sps.run_all_time()
     scheduler = BackgroundScheduler()
 
     if 'cluster' in name:
-        ts = TaskService(mode, use_ssh=True)
+        ts = TaskService(mode)
         scheduler.add_job(ts.analyze_task_v2, 'interval', minutes=1)
     if 'new' in name:
-        ns = NewsService(mode, use_ssh=True)
+        ns = NewsService(mode)
         scheduler.add_job(ns.senti_news, 'interval', minutes=1)
     if 'post' in name:
-        sps = SocialPostService(mode, use_ssh=True)
+        sps = SocialPostService(mode)
         scheduler.add_job(sps.senti_post, 'interval', minutes=1)
     scheduler.start()
 

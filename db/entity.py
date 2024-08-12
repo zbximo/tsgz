@@ -142,5 +142,5 @@ class DataTask(Base):
     post_id_list = Column(LONGTEXT, comment='List<postId>')
     status = Column(Integer, comment='0未完成 1模型已完成待接收 2接收完毕')
     create_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"), comment='创建时间')
-    keywords = Column(VARCHAR(255), comment='检索关键词')
+    keywords = Column(VARCHAR(2000), comment='检索关键词')
     update_date = Column(DateTime, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"), comment='修改时间')

@@ -28,15 +28,15 @@ def main():
     mode = args.env
     os.environ["tsgz_mode"] = mode
     if 'cluster' in name:
-        ts = TaskService(mode, use_ssh=False)
+        ts = TaskService(mode)
         ts.run_all_time_v2()
 
     if 'new' in name:
-        ns = NewsService(mode, use_ssh=False)
+        ns = NewsService(mode)
         ns.run_all_time()
 
     if 'post' in name:
-        sps = SocialPostService(mode, use_ssh=False)
+        sps = SocialPostService(mode)
         sps.run_all_time()
 
 
