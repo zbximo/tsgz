@@ -9,6 +9,7 @@ from sqlalchemy.ext.declarative import declarative_base
 class dbTools(object):
 
     def __init__(self, mode='test'):
+
         if mode == 'test':
             config_module = 'config'
         else:

@@ -4,7 +4,6 @@
 # @Time: 2024/5/10 11:21
 import time
 from tqdm import tqdm
-
 import log_pro
 from db.database import dbTools
 from db.entity import *
@@ -13,8 +12,9 @@ from sqlalchemy.orm.query import Query
 import constants
 import os
 
+
 class NewsService():
-    def __init__(self, mode='pro'):
+    def __init__(self, mode='test'):
         self.db = dbTools(mode)
         self.db.open()
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
@@ -35,16 +35,16 @@ class NewsService():
         for i in tqdm(range(0, num, bs)):
             # result = query.offset(i).limit(bs).all()
             result = query.limit(bs).all()
-            original_titles = [ii.original_title[:100] if ii.original_title is not None else " " for ii in result]
-            titles = [ii.title[:100] if ii.title is not None else " " for ii in result]
+            # original_titles = [ii.original_title[:100] if ii.original_title is not None else " " for ii in result]
+            titles = [ii.title[:100] if ii.title is not None and ii.title != "" else " " for ii in result]
 
             try:
-                analyzed = SC.predict(original_titles, titles)
+                analyzed = SC.predict(titles)
                 for one, emo in zip(result, analyzed):
                     one.emotion = constants.Sentiment.senti[emo]
                     one.is_emotional_analysed = 1
             except Exception as e:
-                self.retry_senti(result)
+                self.retry_senti(result, SC)
             finally:
                 session.commit()
         session.close()
@@ -56,18 +56,18 @@ class NewsService():
             if r == 0:
                 time.sleep(60)
 
-    def retry_senti(self, result):
-        SCR = SentimentCls()
+    def retry_senti(self, result, model):
         for one in result:
             one.is_emotional_analysed = 1
             try:
-                emo = SCR.predict(one.original_title, one.title)
+                emo = model.predict(one.title)
                 one.emotion = constants.Sentiment.senti[emo]
             except:
+                print(f'{one.title=}')
                 one.emotion = constants.Sentiment.senti["neutral"]
 
 
-
 if __name__ == '__main__':
-    news = NewsService()
+    os.environ["tsgz_mode"] = "test"
+    news = NewsService(mode="test")
     r = news.run_all_time()

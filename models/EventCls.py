@@ -2,20 +2,19 @@
 # @ModuleName: EventCls
 # @Author: ximo
 # @Time: 2024/5/14 14:53
-import time
 
-import paddlenlp
-from modelscope import pipeline
-from paddlenlp import Taskflow
-import config
-from pymilvus import MilvusClient, DataType
-from BCEmbedding import EmbeddingModel, RerankerModel
 from itertools import chain
+
+from BCEmbedding import EmbeddingModel, RerankerModel
+from modelscope import pipeline
+from pymilvus import MilvusClient, DataType
+
+import config
 
 
 class EventCls():
-    def __init__(self):
-
+    def __init__(self,batch_size=200):
+        self.bs = batch_size
         self.client = None
         self.collection_name = None
         self.bce_emb_model = EmbeddingModel(model_name_or_path=config.MODEL_CONFIG["bce-embedding-base_v1"],
@@ -32,10 +31,11 @@ class EventCls():
         :return:
         """
         if is_news:
-            data_t = [i["title"] + i["content"] for i in data]
+            data_ = [i["title"] + i["content"] for i in data]
         else:
-            data_t = [i["title"] for i in data]
-        data_emb = self.bce_emb_model.encode(data_t).tolist()
+            data_ = [i["title"][:500] for i in data]
+        data_t = [i if i is not None and i != "" else " " for i in data_]
+        data_emb = self.bce_emb_model.encode(data_t,enable_tqdm=False,batch_size=self.bs).tolist()
         for idx, i in enumerate(data):
             i["embedding"] = data_emb[idx]
         self.client = MilvusClient(
@@ -77,10 +77,11 @@ class EventCls():
                 self.collection_name,
                 data=data
             )
-            print("Insert result:", insert_result)
+            # print("Insert result:", insert_result)
         except Exception as e:
             print(f"An error occurred: {e}")
         self.client.refresh_load(self.collection_name)
+        return data_emb
 
     def predict(self, events, keywords, titles, titles_id):
         """
@@ -106,7 +107,7 @@ class EventCls():
                 event_name2id_dict["其他"] = event_id
         for event_id, event_name in events[:-1]:
             d = keywords + [event_name]
-            search_embeddings = self.bce_emb_model.encode(d)
+            search_embeddings = self.bce_emb_model.encode(d,enable_tqdm=False,batch_size=self.bs)
             search_params = {"metric_type": "COSINE", "params": {}}
             results = self.client.search(self.collection_name, search_embeddings, search_params=search_params,
                                          limit=500,
@@ -121,7 +122,7 @@ class EventCls():
                 continue
             sentence_pairs = [(event_name, i[1]) for i in remain_titles]
 
-            pairs_scores = self.bce_reranker_model.compute_score(sentence_pairs)
+            pairs_scores = self.bce_reranker_model.compute_score(sentence_pairs,enable_tqdm=False)
             score_th = max(pairs_scores) * 0.9
             for idx, score in enumerate(pairs_scores):
                 if score >= score_th:
@@ -133,9 +134,7 @@ class EventCls():
                               device="cuda:1")
         labels = [i[1] for i in events[:-1]]
         labels.append("其他")
-        print(labels)
         results = classifier(titles, candidate_labels=labels)
-        print(results)
         for t, t_id, res in zip(titles, titles_id, results):
             label = res['labels'][0]
             score = res['scores'][0]
@@ -146,8 +145,6 @@ class EventCls():
                 if t not in event_result_title[label]:
                     event_result_id[label].append(t_id)
                     event_result_title[label].append(t)
-        print('*' * 30)
-        print(event_result_title)
         merged_list = list(chain.from_iterable(event_result_id.values()))
         id_not_in_final_result = []
         title_not_in_final_result = []

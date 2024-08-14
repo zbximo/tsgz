@@ -9,5 +9,8 @@ class Sentiment:
         "positive": 0,
         "negative": 1,
         "neutral": 2,
+        "正面": 0,
+        "负面": 1,
+        "中立": 2
     }
 

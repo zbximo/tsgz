@@ -2,23 +2,20 @@
 # @ModuleName: TaskService
 # @Author: ximo
 # @Time: 2024/5/9 11:04
-import copy
-import re
-import time
-from tqdm import tqdm
 
-from models.EventCls import EventCls
-from utils.Tools import *
+from sqlalchemy import and_, case
 from sqlalchemy.orm import Query
-from sqlalchemy import func, or_, and_, desc, case
-from collections import Counter
-from db.database import dbTools
+from tqdm import tqdm
+import paddlenlp
+
+import log_pro
 from db.entity import *
 from models.Cluster import *
-import jieba
-import log_pro
-import os
-
+from models.EventCls import EventCls
+from utils.Tools import *
+import numpy as np
+import transformers
+transformers.logging.set_verbosity_error()
 
 class TaskService():
     def __init__(self, mode='pro'):
@@ -39,9 +36,8 @@ class TaskService():
             session.close()
             return 0
 
-
         cluster = Cluster()
-        cluster.load_text_emb(device='cuda:0')
+        cluster.load_text_emb(device='cuda:1')
         # cluster.load_pos_model()
         snowflake = SnowFlake()
         for task in task_result:
@@ -58,9 +54,24 @@ class TaskService():
             if new_id_list is not None and len(new_id_list) != 0:
                 news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
                 news_list = news_query.all()
-                insert_data = [{"id": i.id, "title": i.title, "content": i.content} for i in news_list]
-                news_zh_titles = [j.title for j in news_list]
+                insert_data = []
+
+                for i in news_list:
+                    data_tmp = {"id": i.id, "title": i.title, "content": i.content}
+                    if i.title is None or i.title == "":
+                        data_tmp["title"] = " "
+                    if i.content is None or i.content == "":
+                        data_tmp["content"] = " "
+
+                    insert_data.append(data_tmp)
+                # with open("r.json","w") as f:
+                #     f.write(str(insert_data))
+                # insert_data = [
+                #     {"id": i.id, "title": i.title, "content": i.content} if i.title is not None and i != "" else {
+                #         "id": i.id, "title": " ", "content": i.content} for i in news_list]
+                news_zh_titles = [j.title if j.title is not None and j.title != "" else " " for j in news_list]
                 news_id = [j.id for j in news_list]
+
                 e_session = self.db.get_new_session()
 
                 events = e_session.query(DataEvent).filter(
@@ -78,6 +89,8 @@ class TaskService():
                                                                  news_zh_titles, news_id)
                 # ori_data_by_event = {}
                 # 遍历添加data_add表
+                batch_size = 100  # 每N个记录提交一次
+                count = 0
                 add_session = self.db.get_new_session()
                 for e_id, new_ids in data_by_event.items():
                     for nid in new_ids:
@@ -88,9 +101,12 @@ class TaskService():
                         dataAdd.plan_id = task.plan_id
                         dataAdd.newsId = nid
                         dataAdd.event_id = e_id
+                        count += 1
                         add_session.add(dataAdd)
-                        add_session.commit()
-
+                        if count % batch_size == 0:
+                            add_session.commit()
+                if count % batch_size != 0:
+                    add_session.commit()
                 add_session.close()
                 e_session.close()
                 EC.close()
@@ -120,8 +136,9 @@ class TaskService():
 
                 for k, v in data_by_event.items():
                     DataSimilars = q_session.query(DataSimilar).filter(DataSimilar.event_id == k).all()
-                    DataSimilarsIds = [i.id for i in DataSimilars]
-                    DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]
+                    DataSimilarsIds = [i.id for i in DataSimilars]  # [DataSimilars.id,...]
+                    DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]  # [[DataSimilars.news.id,...],]
+                    # 没有相似文章 直接聚类
                     if len(DataSimilars) == 0:
                         cluster_news_result = cluster.cluster_sentences(titles_data_by_event[k], threshold=0.3) \
                             if len(v) > 1 else {0: [0]}
@@ -136,18 +153,19 @@ class TaskService():
                         threshold = 0.8
                         # 遍历event里面的每个新闻
 
-                        # fast:v2
-                        dsnewsids = [d[0] for d in DataSimilarsNewsIds]
+                        dsnewsids = [d[0] for d in DataSimilarsNewsIds]  # 拿出每一个类的第一条新闻ID [news.id,...]
                         similar_news = q_session.query(DataNew.title).filter(
                             DataNew.id.in_(dsnewsids)).all()
-                        similar_news_list = [title[0] for title in similar_news]
+                        similar_news_list = [title[0] for title in similar_news]  # [news.title,...]
+                        similar_news_emb_list = cluster.get_embedding(
+                            similar_news_list)  # [news.embedding, ...] [n,768]
                         for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
-                            similar_matrix, score = cluster.similarity(t, similar_news_list,
-                                                                       threshold=threshold, use_emd=True)
-                            # dsnewsids = [d[0] for d in DataSimilarsNewsIds]
-                            # similar_news = q_session.query(DataNew.title).filter(
-                            #     DataNew.id.in_(dsnewsids)).all()
-                            # similar_news_list = [title[0] for title in similar_news]
+                            source = cluster.get_embedding(t)
+                            # similar_matrix, score = cluster.similarity(t, similar_news_list,
+                            #                                            threshold=threshold, use_emd=True)
+                            similar_matrix, score = cluster.similarity(source, similar_news_emb_list,
+                                                                       threshold=threshold, use_emd=False)
+                            # 能在现有数据中匹配到相似文章
                             if similar_matrix[0] < len(similar_news_list):
                                 max_similar_dsid = DataSimilarsIds[similar_matrix[0]]
                                 for ds in DataSimilars:
@@ -166,41 +184,10 @@ class TaskService():
                                 q_session.add(dataSimilar)
                                 DataSimilarsIds.append(rid)
                                 DataSimilarsNewsIds.append([i])
-                                dsnewsids.append(i)  #
-                                similar_news_list.append(t)  #
-                        # # slow v1 遍历找最大值
-                        # for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
-                        # max_similar_dsid = -1
-                        # max_similar_score = threshold
-                        # for ds_id, dsnewsids in zip(DataSimilarsIds, DataSimilarsNewsIds):
-                        #     similar_news = q_session.query(DataNew.title).filter(
-                        #         DataNew.id.in_(dsnewsids)).all()
-                        #     similar_news_list = [title[0] for title in similar_news]
-                        #
-                        #     dsid = ds_id
-                        #     similar_matrix, score = cluster.similarity(t, similar_news_list,
-                        #                                                threshold=threshold, use_emd=True)
-                        #     if max_similar_score < score[0]:
-                        #         max_similar_score = score[0]
-                        #         max_similar_dsid = dsid
-                        #
-                        # if max_similar_dsid != -1:
-                        #     for ds in DataSimilars:
-                        #         if ds.id == max_similar_dsid:
-                        #             newsIds = eval(ds.news_ids)
-                        #             newsIds.append(i)
-                        #             newsIds = list(set(newsIds))
-                        #             ds.news_ids = str(newsIds)
-                        # else:
-                        #     dataSimilar = DataSimilar()
-                        #     rid = snowflake.generate()
-                        #     dataSimilar.id = rid
-                        #     dataSimilar.plan_id = task.plan_id
-                        #     dataSimilar.news_ids = str([i])
-                        #     dataSimilar.event_id = k
-                        #     q_session.add(dataSimilar)
-                        #     DataSimilarsIds.append(rid)
-                        #     DataSimilarsNewsIds.append([i])
+                                dsnewsids.append(i)
+                                similar_news_list.append(t)
+
+                                similar_news_emb_list = np.append(similar_news_emb_list, source, axis=0)
 
                     q_session.commit()
                 q_session.close()
@@ -208,8 +195,9 @@ class TaskService():
             if post_id_list is not None and len(post_id_list) != 0:
                 posts_query: Query = session.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list))
                 posts_list = posts_query.all()
-                insert_data = [{"id": i.id, "title": i.title} for i in posts_list]
-                post_zh_titles = [j.title for j in posts_list]
+                insert_data = [{"id": i.id, "title": i.title} if i.title is not None and i != "" else {
+                    "id": i.id, "title": " "} for i in posts_list]
+                post_zh_titles = [j.title if j.title is not None and j.title != "" else " " for j in posts_list]
                 post_id = [j.id for j in posts_list]
                 e_session = self.db.get_new_session()
 
@@ -223,11 +211,13 @@ class TaskService():
 
                 event_id_titles = [[j.id, j.title] for j in events]
                 EC = EventCls()
-                EC.insert_milvus(task.plan_id, insert_data,is_news=False)
+                EC.insert_milvus(task.plan_id, insert_data, is_news=False)
                 data_by_event, titles_data_by_event = EC.predict(event_id_titles, task.keywords.split(","),
                                                                  post_zh_titles, post_id)
                 # ori_data_by_event = {}
                 # 遍历添加data_add表
+                batch_size = 100  # 每N个记录提交一次
+                count = 0
                 add_session = self.db.get_new_session()
                 for e_id, p_ids in data_by_event.items():
                     for pid in p_ids:
@@ -239,8 +229,10 @@ class TaskService():
                         dataAdd.postId = pid
                         dataAdd.event_id = e_id
                         add_session.add(dataAdd)
-                        add_session.commit()
-
+                        if count % batch_size == 0:
+                            add_session.commit()
+                if count % batch_size != 0:
+                    add_session.commit()
                 add_session.close()
                 e_session.close()
                 EC.close()
@@ -263,7 +255,7 @@ class TaskService():
 
             task.status = 1
 
-            print(task.__dict__)
+            # print(task.__dict__)
             self.log_pro.info(f'{task.id=} over')
             session.commit()
 
@@ -281,5 +273,5 @@ class TaskService():
 if __name__ == '__main__':
     os.environ['tsgz_mode'] = "test"
     TS = TaskService('test')
-    # TS.run_all_time_v2()
-    TS.analyze_task_v2()
+    TS.run_all_time_v2()
+    # TS.analyze_task_v2()

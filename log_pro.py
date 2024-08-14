@@ -12,21 +12,21 @@ import logging
 
 
 def log_with_name(name):
-    logger = logging.getLogger('{}_logger'.format(name))
-
-    logger.setLevel(logging.DEBUG)
-    if not logger.handlers:
+    logger1 = logging.getLogger('{}_logger'.format(name))
+    # logger1.propagate = False
+    logger1.setLevel(logging.INFO)
+    if not logger1.handlers:
         test_log = logging.FileHandler('{}.log'.format(name), 'a', encoding='utf-8')
 
-        test_log.setLevel(logging.DEBUG)
+        test_log.setLevel(logging.INFO)
 
         formatter = logging.Formatter(
             '%(asctime)s - %(filename)s - line:%(lineno)d - %(levelname)s - %(message)s -%(process)s')
 
         test_log.setFormatter(formatter)
 
-        logger.addHandler(test_log)
-    return logger
+        logger1.addHandler(test_log)
+    return logger1
 
 
 if __name__ == "__main__":
