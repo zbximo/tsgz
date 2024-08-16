@@ -13,7 +13,7 @@ import config
 
 
 class EventCls():
-    def __init__(self,batch_size=200):
+    def __init__(self, batch_size=200):
         self.bs = batch_size
         self.client = None
         self.collection_name = None
@@ -21,6 +21,10 @@ class EventCls():
                                             device="cuda:1")
         self.bce_reranker_model = RerankerModel(model_name_or_path=config.MODEL_CONFIG["bce-reranker-base_v1"],
                                                 device="cuda:1")
+
+        self.classifier = pipeline('zero-shot-classification',
+                                   config.MODEL_CONFIG["nlp_structbert_zero-shot-classification_chinese-large"],
+                                   device="cuda:1")
 
     def insert_milvus(self, plan_id, data, is_news=True):
         """
@@ -35,7 +39,7 @@ class EventCls():
         else:
             data_ = [i["title"][:500] for i in data]
         data_t = [i if i is not None and i != "" else " " for i in data_]
-        data_emb = self.bce_emb_model.encode(data_t,enable_tqdm=False,batch_size=self.bs).tolist()
+        data_emb = self.bce_emb_model.encode(data_t, enable_tqdm=False, batch_size=self.bs).tolist()
         for idx, i in enumerate(data):
             i["embedding"] = data_emb[idx]
         self.client = MilvusClient(
@@ -105,9 +109,23 @@ class EventCls():
             event_name2id_dict[event_name] = event_id
             if event_name == "非事件信息":
                 event_name2id_dict["其他"] = event_id
+
+        labels = [i[1] for i in events[:-1]]
+        labels.append("其他")
+        results = self.classifier(titles, candidate_labels=labels)
+        for t, t_id, res in zip(titles, titles_id, results):
+            label = res['labels'][0]
+            score = res['scores'][0]
+            if label == "其他":
+                label = "非事件信息"
+            if score > 0.45:
+                if t not in event_result_title[label]:
+                    event_result_id[label].append(t_id)
+                    event_result_title[label].append(t)
+
         for event_id, event_name in events[:-1]:
             d = keywords + [event_name]
-            search_embeddings = self.bce_emb_model.encode(d,enable_tqdm=False,batch_size=self.bs)
+            search_embeddings = self.bce_emb_model.encode(d, enable_tqdm=False, batch_size=self.bs)
             search_params = {"metric_type": "COSINE", "params": {}}
             results = self.client.search(self.collection_name, search_embeddings, search_params=search_params,
                                          limit=500,
@@ -122,46 +140,21 @@ class EventCls():
                 continue
             sentence_pairs = [(event_name, i[1]) for i in remain_titles]
 
-            pairs_scores = self.bce_reranker_model.compute_score(sentence_pairs,enable_tqdm=False)
+            pairs_scores = self.bce_reranker_model.compute_score(sentence_pairs, enable_tqdm=False)
             score_th = max(pairs_scores) * 0.9
             for idx, score in enumerate(pairs_scores):
-                if score >= score_th:
+                if score >= score_th and remain_titles[idx][1] not in event_result_title["非事件信息"]:
                     event_result_id[event_name].append(remain_titles[idx][0])
                     event_result_title[event_name].append(remain_titles[idx][1])
-        # print(event_result_id, event_result_title)
-        classifier = pipeline('zero-shot-classification',
-                              '/mnt/data/users/xhd/tsgz/model_dir/nlp_structbert_zero-shot-classification_chinese-large',
-                              device="cuda:1")
-        labels = [i[1] for i in events[:-1]]
-        labels.append("其他")
-        results = classifier(titles, candidate_labels=labels)
-        for t, t_id, res in zip(titles, titles_id, results):
-            label = res['labels'][0]
-            score = res['scores'][0]
-            if label == "其他":
-                label = "非事件信息"
-            if score > 0.45:
-
-                if t not in event_result_title[label]:
-                    event_result_id[label].append(t_id)
-                    event_result_title[label].append(t)
-        merged_list = list(chain.from_iterable(event_result_id.values()))
-        id_not_in_final_result = []
-        title_not_in_final_result = []
-        for i, j in zip(titles_id, titles):
-            if i not in merged_list:
-                id_not_in_final_result.append(i)
-                title_not_in_final_result.append(j)
 
         news_by_event = {}  # {"event_id":[news_id, news_id, ...]}
         titles_by_event = {}
+        # event_name to event_id
         for e_id, t_ids in event_result_id.items():
             news_by_event[event_name2id_dict[e_id]] = t_ids
-        news_by_event[event_name2id_dict["其他"]].extend(id_not_in_final_result)
         for e_id, t in event_result_title.items():
             titles_by_event[event_name2id_dict[e_id]] = t
-        titles_by_event[event_name2id_dict["其他"]].extend(title_not_in_final_result)
-        # print(final_result)
+
         return news_by_event, titles_by_event
 
     def close(self):

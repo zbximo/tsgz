@@ -32,14 +32,10 @@ def get_model_dir(model_name):
 
 
 MODEL_CONFIG = {
-    "sentiment": get_model_dir(
-        "models--lxyuan--distilbert-base-multilingual-cased-sentiments-student/snapshots/2e33845d25b3ed0c8994ed53adb72566a1d39d79"),
-    "text_emb": get_model_dir(
-        "models--sentence-transformers--LaBSE/snapshots/50fe0940fa3ca3be4d2170f21395beb6d581fc44"),
     "utc-base": get_model_dir("utc-base"),
-    "lac": get_model_dir("lac"),
     "cn": get_model_dir("cn"),
     "emotion": get_model_dir("emotion"),
-    "bce-embedding-base_v1": get_model_dir("bce-embedding-base_v1"),
-    "bce-reranker-base_v1": get_model_dir("bce-reranker-base_v1")
+    "bce-embedding-base_v1":get_model_dir("bce-embedding-base_v1"),
+    "bce-reranker-base_v1":get_model_dir("bce-reranker-base_v1")
 }
+

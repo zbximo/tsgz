@@ -11,19 +11,17 @@ import config
 
 
 class Cluster():
-    def __init__(self, TEXT_EMB_MODEL_PATH=config.MODEL_CONFIG["bce-embedding-base_v1"],
-                 POS_MODEL_PATH=config.MODEL_CONFIG["lac"]):
+    def __init__(self, TEXT_EMB_MODEL_PATH=config.MODEL_CONFIG["bce-embedding-base_v1"]):
         self.pos_task = None
         self.model = None
         self.TEXT_EMB_MODEL_PATH = TEXT_EMB_MODEL_PATH
-        self.POS_MODEL_PATH = POS_MODEL_PATH
 
     def load_text_emb(self, device='cuda:1'):
         self.model = EmbeddingModel(model_name_or_path=config.MODEL_CONFIG["bce-embedding-base_v1"],
                                     device=device)
 
     def get_embedding(self, corpus):
-        corpus_embeddings = self.model.encode(corpus,enable_tqdm=False,batch_size=200)
+        corpus_embeddings = self.model.encode(corpus, enable_tqdm=False, batch_size=200)
         return corpus_embeddings
 
     def cluster_sentences(self, corpus, threshold):
@@ -52,9 +50,9 @@ class Cluster():
 
     @staticmethod
     def cosine_similarity(vectors1, vectors2):
-        if isinstance(vectors1,list):
+        if isinstance(vectors1, list):
             vectors1 = np.array(vectors1)
-        if isinstance(vectors2,list):
+        if isinstance(vectors2, list):
             vectors2 = np.array(vectors2)
         dot_product = np.dot(vectors1, vectors2.T)
         norm_vectors1 = np.linalg.norm(vectors1, axis=1, keepdims=True)
