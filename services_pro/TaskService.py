@@ -138,6 +138,9 @@ class TaskService():
                     DataSimilars = q_session.query(DataSimilar).filter(DataSimilar.event_id == k).all()
                     DataSimilarsIds = [i.id for i in DataSimilars]  # [DataSimilars.id,...]
                     DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]  # [[DataSimilars.news.id,...],]
+                    # 返回的data_by_event,包含所有事件,会存在一条新闻没被分类到某个事件的情况
+                    if len(v)==0:
+                        continue
                     # 没有相似文章 直接聚类
                     if len(DataSimilars) == 0:
                         cluster_news_result = cluster.cluster_sentences(titles_data_by_event[k], threshold=0.3) \

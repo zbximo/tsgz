@@ -36,8 +36,10 @@ class EventCls():
         """
         if is_news:
             data_ = [i["title"] + i["content"] for i in data]
+            self.collection_name = 'plan_' + str(plan_id)+"_news"
         else:
             data_ = [i["title"][:500] for i in data]
+            self.collection_name = 'plan_' + str(plan_id) + "_post"
         data_t = [i if i is not None and i != "" else " " for i in data_]
         data_emb = self.bce_emb_model.encode(data_t, enable_tqdm=False, batch_size=self.bs).tolist()
         for idx, i in enumerate(data):
@@ -49,7 +51,7 @@ class EventCls():
             #     auto_id=True,
             enable_dynamic_field=True,
         )
-        self.collection_name = 'plan_' + str(plan_id)
+
 
         if self.client.has_collection(self.collection_name):
             self.client.drop_collection(self.collection_name)
