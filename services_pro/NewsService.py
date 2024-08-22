@@ -2,8 +2,13 @@
 # @ModuleName: NewsService
 # @Author: ximo
 # @Time: 2024/5/10 11:21
+import json
 import time
+
+from kafka import KafkaConsumer
 from tqdm import tqdm
+
+import config
 import log_pro
 from db.database import dbTools
 from db.entity import *
@@ -48,6 +53,7 @@ class NewsService():
             finally:
                 session.commit()
         session.close()
+        del SC
         return 1
 
     def run_all_time(self):
@@ -65,6 +71,43 @@ class NewsService():
             except:
                 print(f'{one.title=}')
                 one.emotion = constants.Sentiment.senti["neutral"]
+
+    def sent(self, data):
+        title_list = [i.get("title", " ")[:100] if i is not None and i != "" else " " for i in data]
+        id_list = [i.get("id", " ") if i is not None and i != "" else " " for i in data]
+
+        SC = SentimentCls()
+        analyzed = SC.predict(title_list)
+        session = self.db.get_new_session()
+        updates = [{"id": news_id, "emotion": constants.Sentiment.senti[emo], "is_emotional_analysed": 1} for
+                   news_id, emo in zip(id_list, analyzed)]
+        session.bulk_update_mappings(DataNew, updates)
+        session.commit()
+        session.close()
+        del SC
+
+    def kafka_senti(self):
+        consumer = KafkaConsumer(
+            'NEW_NEW',
+            bootstrap_servers=config.KAFKA_CONFIG.get("bootstrap_servers"),
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            group_id='news_consumer1',
+            value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+        )
+        try:
+            while True:
+                messages = consumer.poll(timeout_ms=1000, max_records=100)
+                data = [m.value for msgs in messages.values() for m in msgs]
+                try:
+                    if len(data) != 0:
+                        self.sent(data)
+                except Exception as e:
+                    self.log_pro.error(f"{e=}")
+        except KeyboardInterrupt:
+            print("停止消费者...")
+        finally:
+            consumer.close()
 
 
 if __name__ == '__main__':

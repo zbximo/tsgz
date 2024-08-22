@@ -2,20 +2,24 @@
 # @ModuleName: TaskService
 # @Author: ximo
 # @Time: 2024/5/9 11:04
+import json
+
+import log_pro
 
 from sqlalchemy import and_, case
 from sqlalchemy.orm import Query
 from tqdm import tqdm
 import paddlenlp
-
-import log_pro
+from kafka import KafkaConsumer
 from db.entity import *
 from models.Cluster import *
 from models.EventCls import EventCls
 from utils.Tools import *
 import numpy as np
 import transformers
+
 transformers.logging.set_verbosity_error()
+
 
 class TaskService():
     def __init__(self, mode='pro'):
@@ -23,11 +27,19 @@ class TaskService():
         self.db.open()
         self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
 
-    def analyze_task_v2(self):
+    def analyze_task_v2(self, task_ids=None):
+        """
 
+        :param task_ids: List
+        :return:
+        """
         session = self.db.get_new_session()
         # get tasks
-        task_query = session.query(DataTask).filter(and_(DataTask.status == 0)).order_by(DataTask.create_date.asc())
+        if task_ids:
+            task_query = session.query(DataTask).filter(and_(DataTask.status == 0, DataTask.id.in_(task_ids))).order_by(
+                DataTask.create_date.asc())
+        else:
+            task_query = session.query(DataTask).filter(and_(DataTask.status == 0)).order_by(DataTask.create_date.asc())
         task_result = task_query.all()
 
         # print(f'{task_result=}')
@@ -139,7 +151,7 @@ class TaskService():
                     DataSimilarsIds = [i.id for i in DataSimilars]  # [DataSimilars.id,...]
                     DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]  # [[DataSimilars.news.id,...],]
                     # 返回的data_by_event,包含所有事件,会存在一条新闻没被分类到某个事件的情况
-                    if len(v)==0:
+                    if len(v) == 0:
                         continue
                     # 没有相似文章 直接聚类
                     if len(DataSimilars) == 0:
@@ -271,6 +283,28 @@ class TaskService():
             r = self.analyze_task_v2()
             if r == 0:
                 time.sleep(60)
+
+    def kafka_analyze(self):
+        consumer = KafkaConsumer(
+            'CHANGE_PLAN',
+            bootstrap_servers=['10.63.146.203:9092'],
+            auto_offset_reset='earliest',
+            enable_auto_commit=True,
+            group_id='plan_consumer1',
+            value_deserializer=lambda x: json.loads(x.decode('utf-8'))
+        )
+        try:
+            for message in consumer:
+                try:
+                    task_id_ = message.value.get('task_id')
+                    self.analyze_task_v2([task_id_])
+                except Exception as e:
+                    self.log_pro.error(f'{task_id_=} error,  {e=}')
+                # 在这里处理消息，例如基于 task_id 执行某些操作
+        except KeyboardInterrupt:
+            print("停止消费者...")
+        finally:
+            consumer.close()
 
 
 if __name__ == '__main__':

@@ -9,8 +9,7 @@
 # @Time: 2023/12/15 11:29
 
 import logging
-
-
+logging.basicConfig(level=logging.INFO)
 def log_with_name(name):
     logger1 = logging.getLogger('{}_logger'.format(name))
     # logger1.propagate = False

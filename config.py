@@ -21,7 +21,9 @@ DB_CONFIG = {
     'password': 'tsgz2024',
     'database': 'situation_system'
 }
-
+KAFKA_CONFIG = {
+    'bootstrap_servers': ['10.63.146.203:9092'],
+}
 
 def get_model_dir(model_name):
     model_dir = os.path.join(os.path.dirname(__file__), f'model_dir/{model_name}')

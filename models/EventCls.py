@@ -3,7 +3,6 @@
 # @Author: ximo
 # @Time: 2024/5/14 14:53
 
-from itertools import chain
 
 from BCEmbedding import EmbeddingModel, RerankerModel
 from modelscope import pipeline

@@ -2,6 +2,7 @@
 # @ModuleName: app
 # @Author: ximo
 # @Time: 2024/5/27 16:55
+import log_pro
 import argparse
 
 from apscheduler.schedulers.background import BackgroundScheduler
