@@ -35,7 +35,7 @@ class EventCls():
         """
         if is_news:
             data_ = [i["title"] + i["content"] for i in data]
-            self.collection_name = 'plan_' + str(plan_id)+"_news"
+            self.collection_name = 'plan_' + str(plan_id) + "_news"
         else:
             data_ = [i["title"][:500] for i in data]
             self.collection_name = 'plan_' + str(plan_id) + "_post"
@@ -50,7 +50,6 @@ class EventCls():
             #     auto_id=True,
             enable_dynamic_field=True,
         )
-
 
         if self.client.has_collection(self.collection_name):
             self.client.drop_collection(self.collection_name)
@@ -120,9 +119,11 @@ class EventCls():
             if label == "其他":
                 label = "非事件信息"
             if score > 0.45:
-                if t not in event_result_title[label]:
-                    event_result_id[label].append(t_id)
-                    event_result_title[label].append(t)
+                event_result_id[label].append(t_id)
+                event_result_title[label].append(t)
+            else:
+                event_result_id["非事件信息"].append(t_id)
+                event_result_title["非事件信息"].append(t)
 
         for event_id, event_name in events[:-1]:
             d = keywords + [event_name]
@@ -142,6 +143,8 @@ class EventCls():
             sentence_pairs = [(event_name, i[1]) for i in remain_titles]
 
             pairs_scores = self.bce_reranker_model.compute_score(sentence_pairs, enable_tqdm=False)
+            if not isinstance(pairs_scores, list):
+                pairs_scores = [pairs_scores]
             score_th = max(pairs_scores) * 0.9
             for idx, score in enumerate(pairs_scores):
                 if score >= score_th and remain_titles[idx][1] not in event_result_title["非事件信息"]:
@@ -152,11 +155,12 @@ class EventCls():
         titles_by_event = {}
         # event_name to event_id
         for e_id, t_ids in event_result_id.items():
-            news_by_event[event_name2id_dict[e_id]] = t_ids
+            news_by_event[event_name2id_dict[e_id]] = list(set(t_ids))
         for e_id, t in event_result_title.items():
-            titles_by_event[event_name2id_dict[e_id]] = t
+            titles_by_event[event_name2id_dict[e_id]] = list(set(t))
 
         return news_by_event, titles_by_event
+
 
     def close(self):
         self.client.drop_collection(self.collection_name)
