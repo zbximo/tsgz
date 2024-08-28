@@ -147,17 +147,17 @@ class EventCls():
                 pairs_scores = [pairs_scores]
             score_th = max(pairs_scores) * 0.9
             for idx, score in enumerate(pairs_scores):
-                if score >= score_th and remain_titles[idx][1] not in event_result_title["非事件信息"]:
+                if score >= score_th and remain_titles[idx][0] not in event_result_id["非事件信息"] and remain_titles[idx][0] not in event_result_id[event_name]:
                     event_result_id[event_name].append(remain_titles[idx][0])
                     event_result_title[event_name].append(remain_titles[idx][1])
 
         news_by_event = {}  # {"event_id":[news_id, news_id, ...]}
         titles_by_event = {}
         # event_name to event_id
-        for e_id, t_ids in event_result_id.items():
-            news_by_event[event_name2id_dict[e_id]] = list(set(t_ids))
-        for e_id, t in event_result_title.items():
-            titles_by_event[event_name2id_dict[e_id]] = list(set(t))
+        for e_name, t_ids in event_result_id.items():
+            news_by_event[event_name2id_dict[e_name]] = t_ids
+        for e_name, t in event_result_title.items():
+            titles_by_event[event_name2id_dict[e_name]] = t
 
         return news_by_event, titles_by_event
 

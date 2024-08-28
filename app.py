@@ -9,7 +9,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, request, jsonify
 import os
 
-
 app = Flask(__name__)
 
 
@@ -32,6 +31,30 @@ def run(mode, name):
         sps = SocialPostService(mode)
         scheduler.add_job(sps.senti_post, 'interval', minutes=1)
     scheduler.start()
+
+def run_kafka(mode, name):
+    from services_pro.TaskService import TaskService
+    from services_pro.NewsService import NewsService
+    from services_pro.SocialPostService import SocialPostService
+    import threading
+    os.environ["tsgz_mode"] = mode
+
+
+    if name is None:
+        name = ["cluster", "new", "post"]
+
+    if 'cluster' in name:
+        ts = TaskService(mode)
+        p = threading.Thread(target=ts.kafka_analyze)
+        p.start()
+    if 'new' in name:
+        ns = NewsService(mode)
+        p = threading.Thread(target=ns.kafka_senti)
+        p.start()
+    if 'post' in name:
+        sps = SocialPostService(mode)
+        p = threading.Thread(target=sps.kafka_senti)
+        p.start()
 
 
 @app.route("/tasks", methods=["GET"])
@@ -56,5 +79,5 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    run(args.env, args.name)
+    run_kafka(args.env, args.name)
     app.run(host=args.host, port=args.port)

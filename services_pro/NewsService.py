@@ -73,8 +73,12 @@ class NewsService():
                 one.emotion = constants.Sentiment.senti["neutral"]
 
     def sent(self, data):
-        title_list = [i.get("title", " ")[:100] if i is not None and i != "" else " " for i in data]
-        id_list = [i.get("id", " ") if i is not None and i != "" else " " for i in data]
+        title_list = []
+        id_list = []
+        for i in data:
+            if i is not None and i != "" and "id" in i.keys():
+                title_list.append(i.get("title", " ")[:100])
+                id_list.append(i.get("id"))
 
         SC = SentimentCls()
         analyzed = SC.predict(title_list)
@@ -84,6 +88,7 @@ class NewsService():
         session.bulk_update_mappings(DataNew, updates)
         session.commit()
         session.close()
+        self.log_pro.info(f"news count: {len(data)}")
         del SC
 
     def kafka_senti(self):

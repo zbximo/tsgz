@@ -71,9 +71,12 @@ class SocialPostService():
                 time.sleep(60)
 
     def sent(self, data):
-        title_list = [i.get("title", " ")[:100] if i is not None and i != "" else " " for i in data]
-        id_list = [i.get("id") if i is not None and i != "" else " " for i in data]
-
+        title_list = []
+        id_list = []
+        for i in data:
+            if i is not None and i != "" and "id" in i.keys():
+                title_list.append(i.get("title", " ")[:100])
+                id_list.append(i.get("id"))
         SC = SentimentCls()
         analyzed = SC.predict(title_list)
         session = self.db.get_new_session()
@@ -83,6 +86,7 @@ class SocialPostService():
         session.bulk_update_mappings(DataSocialPost, updates)
         session.commit()
         session.close()
+        self.log_pro.info(f"post count: {len(data)}")
         del SC
 
     def kafka_senti(self):
