@@ -164,7 +164,7 @@ class TaskService():
                                 if i in similar_news_list:
                                     similar_dsid = dsnewsids[similar_news_list.index(i)]
                                     ds_session = self.db.get_new_session()
-                                    ds = ds_session.query(DataSimilar).filter(DataSimilar.id == similar_dsid).filter()
+                                    ds = ds_session.query(DataSimilar).filter(DataSimilar.id == similar_dsid).first()
                                     newsIds = eval(ds.news_ids)
                                     newsIds.append(i)
                                     newsIds = list(set(newsIds))
@@ -195,7 +195,7 @@ class TaskService():
                                     max_similar_dsid = DataSimilarsIds[similar_matrix[0]]
                                     ds_session = self.db.get_new_session()
                                     ds = ds_session.query(DataSimilar).filter(
-                                        DataSimilar.id == max_similar_dsid).filter()
+                                        DataSimilar.id == max_similar_dsid).first()
                                     newsIds = eval(ds.news_ids)
                                     newsIds.append(i)
                                     newsIds = list(set(newsIds))
