@@ -58,7 +58,7 @@ class TaskService():
             if new_id_list is not None and len(new_id_list) != 0:
                 news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
                 news_list = news_query.all()
-                news_zh_titles = [j.title for j in news_list]
+                news_zh_titles = [j.title if j.title is not None and j.title != "" else " " for j in news_list]
                 e_session = self.db.get_new_session()
 
                 events = e_session.query(DataEvent).filter(
@@ -223,7 +223,7 @@ class TaskService():
             if post_id_list is not None and len(post_id_list) != 0:
                 posts_query: Query = session.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list))
                 posts_list = posts_query.all()
-                posts_zh_titles = [j.title for j in posts_list]
+                posts_zh_titles = [j.title if j.title  is not None and j.title != "" else " " for j in posts_list]
                 e_session = self.db.get_new_session()
 
                 events = e_session.query(DataEvent).filter(
