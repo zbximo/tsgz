@@ -36,6 +36,7 @@ def run_kafka(mode, name):
     from services_pro.TaskService import TaskService
     from services_pro.NewsService import NewsService
     from services_pro.SocialPostService import SocialPostService
+    import multiprocessing
     import threading
     os.environ["tsgz_mode"] = mode
 
@@ -45,15 +46,20 @@ def run_kafka(mode, name):
 
     if 'cluster' in name:
         ts = TaskService(mode)
+        # p = multiprocessing.Process(target=ts.kafka_analyze)
         p = threading.Thread(target=ts.kafka_analyze)
         p.start()
     if 'new' in name:
         ns = NewsService(mode)
+        # p = multiprocessing.Process(target=ns.kafka_senti)
         p = threading.Thread(target=ns.kafka_senti)
+
         p.start()
     if 'post' in name:
         sps = SocialPostService(mode)
+        # p = multiprocessing.Process(target=sps.kafka_senti)
         p = threading.Thread(target=sps.kafka_senti)
+
         p.start()
 
 

@@ -303,11 +303,22 @@ from db.entity import DataTask
 # for i in task_query:
 #     print(i.__dict__)
 # session.close()
-x = {
-    'task_i1d': 1
-}
-try:
-    task_id_ = x.get('task_id',None)
-    x = 1 / 0
-except Exception as e:
-    print(f'{task_id_=},')
+# x = {
+#     'task_i1d': 1
+# }
+# try:
+#     task_id_ = x.get('task_id',None)
+#     x = 1 / 0
+# except Exception as e:
+#     print(f'{task_id_=},')
+from services_pro.TaskService import TaskService
+from services_pro.NewsService import NewsService
+from services_pro.SocialPostService import SocialPostService
+import os
+os.environ['tsgz_mode'] = "test"
+# TS = TaskService('test')
+# TS.run_all_time_v2()
+# ns = NewsService('test')
+# ns.run_all_time()
+sps = SocialPostService('test')
+sps.run_all_time()

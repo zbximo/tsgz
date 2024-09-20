@@ -41,11 +41,9 @@ class SocialPostService():
             titles = [ii.title[:200] if ii.title is not None and ii.title != "" else " " for ii in result]
             try:
                 analyzed = SC.predict(titles)
-
                 for one, emo in zip(result, analyzed):
                     one.emotion = constants.Sentiment.senti[emo]
                     one.is_Emotional_Analysed = 1
-
             except Exception as e:
                 self.retry_senti(result)
 
@@ -70,15 +68,18 @@ class SocialPostService():
             if r == 0:
                 time.sleep(60)
 
-    def sent(self, data):
+    def sent(self, data, model):
         title_list = []
         id_list = []
         for i in data:
-            if i is not None and i != "" and "id" in i.keys():
-                title_list.append(i.get("title", " ")[:100])
+            if i is not None and "id" in i.keys():
+                title = i.get("title", " ")
+                if title == "":
+                    title = " "
+                title_list.append(title[:100])
                 id_list.append(i.get("id"))
-        SC = SentimentCls()
-        analyzed = SC.predict(title_list)
+
+        analyzed = model.predict(title_list)
         session = self.db.get_new_session()
         updates = [{"id": news_id, "emotion": constants.Sentiment.senti[emo], "is_Emotional_Analysed": 1} for
                    news_id, emo in
@@ -87,7 +88,6 @@ class SocialPostService():
         session.commit()
         session.close()
         self.log_pro.info(f"post count: {len(data)}")
-        del SC
 
     def kafka_senti(self):
         consumer = KafkaConsumer(
@@ -98,13 +98,14 @@ class SocialPostService():
             group_id='post_consumer1',
             value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
+        SC = SentimentCls()
         try:
             while True:
                 messages = consumer.poll(timeout_ms=1000, max_records=100)
                 data = [m.value for msgs in messages.values() for m in msgs]
                 try:
                     if len(data) != 0:
-                        self.sent(data)
+                        self.sent(data, model=SC)
                 except Exception as e:
                     self.log_pro.error(f"{e=}")
         except KeyboardInterrupt:
