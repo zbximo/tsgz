@@ -42,7 +42,7 @@ class SentimentService():
 
         SC = SentimentCls()
         while True:
-            messages = consumer.poll(timeout_ms=1000, max_records=10)
+            messages = consumer.poll(timeout_ms=1000, max_records=500)
             # data = [m.value for msgs in messages.values() for m in msgs]
             id_list = []
             title_list = []
@@ -50,19 +50,20 @@ class SentimentService():
             for partition, records in messages.items():
                 for message in records:
                     try:
-                        i = json.loads(message.value.decode('utf-8'))
-
-                        if i is not None and "id" in i.keys():
-                            title = i.get("title", " ")
+                        msg = json.loads(message.value.decode('utf-8'))
+                        if msg is not None and "id" in msg.keys():
+                            if "title" in msg.keys():
+                                _key = "title"
+                            else:
+                                _key = "comment_content"
+                            title = msg.get(_key, " ")
                             if title == "":
                                 title = " "
                             title_list.append(title[:100])
-                            id_list.append(i.get("id"))
+                            id_list.append(msg.get("id"))
                             type_list.append(message.topic)
                     except Exception as e:
                         print(f"Failed to decode message at offset {message.offset}. Error: {e}")
-            print(id_list)
-            print(type_list)
             if len(title_list) > 0:
                 analyzed = SC.predict(title_list)
                 update_dict = {
