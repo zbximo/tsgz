@@ -103,7 +103,7 @@
 # task_result = task_query.all()
 #
 # cluster = Cluster()
-# cluster.load_text_emb(device='cuda:1')
+# cluster.load_text_emb(device='cuda:0')
 # # cluster.load_pos_model()
 # snowflake = SnowFlake()
 # for task in task_result:
@@ -316,9 +316,10 @@ from services_pro.NewsService import NewsService
 from services_pro.SocialPostService import SocialPostService
 import os
 os.environ['tsgz_mode'] = "test"
-# TS = TaskService('test')
+TS = TaskService('test')
 # TS.run_all_time_v2()
+TS.kafka_analyze()
 # ns = NewsService('test')
 # ns.run_all_time()
-sps = SocialPostService('test')
-sps.run_all_time()
+# sps = SocialPostService('test')
+# sps.run_all_time()

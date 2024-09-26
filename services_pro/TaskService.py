@@ -12,20 +12,21 @@ from tqdm import tqdm
 import paddlenlp
 from kafka import KafkaConsumer
 from db.entity import *
+
 from models.Cluster import *
 from models.EventCls import EventCls
 from utils.Tools import *
 import numpy as np
-import transformers
+from db.database import dbTools
 
-transformers.logging.set_verbosity_error()
+import transformers
 
 
 class TaskService():
     def __init__(self, mode='pro'):
         self.db = dbTools(mode)
         self.db.open()
-        self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
+        self.log_pro = log_pro.log_with_name(f"task_{os.environ['tsgz_mode']}")
 
     def analyze_task_v2(self, task_ids=None):
         """
@@ -49,7 +50,7 @@ class TaskService():
             return 0
 
         cluster = Cluster()
-        cluster.load_text_emb(device='cuda:1')
+        cluster.load_text_emb(device='cuda:0')
         # cluster.load_pos_model()
         snowflake = SnowFlake()
         for task in task_result:
@@ -310,11 +311,11 @@ class TaskService():
                 q_session.close()
 
             session = self.db.get_new_session()
-            session.query(DataTask).filter(DataTask.id==task.id).update({"status":1})
+            session.query(DataTask).filter(DataTask.id == task.id).update({"status": 1})
             session.commit()
             session.close()
             # task.status = 1
-            # self.log_pro.info(f'{task.id=} over')
+            self.log_pro.info(f'{task.id=} over')
             # session.commit()
 
         # session.close()
@@ -332,18 +333,22 @@ class TaskService():
             'CHANGE_PLAN',
             bootstrap_servers=['10.63.146.203:9092'],
             auto_offset_reset='earliest',
-            enable_auto_commit=True,
+            enable_auto_commit=False,
             group_id='plan_consumer1',
             # value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
         try:
             for message in consumer:
                 try:
-                    task_id_ = message.value.get('task_id')
-                    self.analyze_task_v2([task_id_])
+                    msg = json.loads(message.value.decode('utf-8'))
+                    if "task_id" in msg.keys():
+                        task_id_ = msg.get('task_id')
+                        self.analyze_task_v2([task_id_])
+
                 except Exception as e:
-                    self.log_pro.error(f'{task_id_=} error,  {e=}')
+                    self.log_pro.error(f'{message.value=} error,  {e=}')
                 # 在这里处理消息，例如基于 task_id 执行某些操作
+                consumer.commit()
         except KeyboardInterrupt:
             print("停止消费者...")
         finally:
@@ -353,5 +358,6 @@ class TaskService():
 if __name__ == '__main__':
     os.environ['tsgz_mode'] = "test"
     TS = TaskService('test')
-    TS.run_all_time_v2()
+    # TS.run_all_time_v2()
     # TS.analyze_task_v2()
+    TS.kafka_analyze()

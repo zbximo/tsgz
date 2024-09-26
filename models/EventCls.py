@@ -17,13 +17,13 @@ class EventCls():
         self.client = None
         self.collection_name = None
         self.bce_emb_model = EmbeddingModel(model_name_or_path=config.MODEL_CONFIG["bce-embedding-base_v1"],
-                                            device="cuda:1")
+                                            device="cuda:0")
         self.bce_reranker_model = RerankerModel(model_name_or_path=config.MODEL_CONFIG["bce-reranker-base_v1"],
-                                                device="cuda:1")
+                                                device="cuda:0")
 
         self.classifier = pipeline('zero-shot-classification',
                                    config.MODEL_CONFIG["nlp_structbert_zero-shot-classification_chinese-large"],
-                                   device="cuda:1")
+                                   device="cuda:0")
 
     def insert_milvus(self, plan_id, data, is_news=True):
         """

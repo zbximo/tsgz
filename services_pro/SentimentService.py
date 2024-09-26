@@ -23,7 +23,7 @@ class SentimentService():
     def __init__(self, mode='test'):
         self.db = dbTools(mode)
         self.db.open()
-        self.log_pro = log_pro.log_with_name(f"{os.environ['tsgz_mode']}")
+        self.log_pro = log_pro.log_with_name(f"sentiment_{os.environ['tsgz_mode']}")
 
     def kafka_senti(self):
         topic2orm = {'NEW_NEW': DataNew,
@@ -34,7 +34,7 @@ class SentimentService():
         consumer = KafkaConsumer(
             bootstrap_servers=config.KAFKA_CONFIG.get("bootstrap_servers"),
             auto_offset_reset='earliest',
-            enable_auto_commit=True,
+            enable_auto_commit=False,
             group_id='post_consumer1',
             # value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
@@ -56,6 +56,8 @@ class SentimentService():
                                 _key = "title"
                             else:
                                 _key = "comment_content"
+                            if "data" in msg.keys():
+                                _key = "data"
                             title = msg.get(_key, " ")
                             if title == "":
                                 title = " "
@@ -63,24 +65,30 @@ class SentimentService():
                             id_list.append(msg.get("id"))
                             type_list.append(message.topic)
                     except Exception as e:
-                        print(f"Failed to decode message at offset {message.offset}. Error: {e}")
+                        self.log_pro.error(f"Failed to decode message at offset {message.offset}. Error: {e}")
             if len(title_list) > 0:
-                analyzed = SC.predict(title_list)
-                update_dict = {
-                    'NEW_NEW': [], 'NEW_POST': [], 'NEW_POST_COMMENT': []
-                }
-                for tb, news_id, emo in zip(type_list, id_list, analyzed):
-                    update_dict[tb].append(
-                        {"id": news_id, "emotion": constants.Sentiment.senti[emo], "is_Emotional_Analysed": 1})
-                for tb, updates in update_dict.items():
-                    try:
-                        session = self.db.get_new_session()
-                        session.bulk_update_mappings(topic2orm[tb], updates)
-                        session.commit()
-                        session.close()
-                    except Exception as e:
-                        print(f"update error:{e}")
+                try:
+                    analyzed = SC.predict(title_list)
+
+                    update_dict = {
+                        'NEW_NEW': [], 'NEW_POST': [], 'NEW_POST_COMMENT': []
+                    }
+                    for tb, news_id, emo in zip(type_list, id_list, analyzed):
+                        update_dict[tb].append(
+                            {"id": news_id, "emotion": constants.Sentiment.senti[emo], "is_Emotional_Analysed": 1})
+                    for tb, updates in update_dict.items():
+                        try:
+                            session = self.db.get_new_session()
+                            session.bulk_update_mappings(topic2orm[tb], updates)
+                            session.commit()
+                            session.close()
+                            self.log_pro.info(f"sent:{len(title_list)}")
+                        except Exception as e:
+                            self.log_pro.error(f"update error:{e}")
                     # print(tb, updates)
+                except Exception as e:
+                    self.log_pro.error(f"sentiment error:{e}")
+                consumer.commit()
 
 
 if __name__ == '__main__':

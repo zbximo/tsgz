@@ -1,5 +1,6 @@
 torch==2.3.0
 paddlepaddle-gpu==2.6.1
+kafka-python==2.0.2
 Flask==3.0.3
 jieba==0.42.1
 paddlenlp==2.6.0

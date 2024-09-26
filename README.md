@@ -28,5 +28,5 @@
 运行脚本时，可以根据需要指定这些可选参数：
 
 ```bash
-python app.py --host 127.0.0.1 --port 5000 --env test --name cluster new
+python sentiment.py --host 127.0.0.1 --port 5000 --env test --name cluster new
 ```

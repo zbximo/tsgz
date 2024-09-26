@@ -16,7 +16,7 @@ class Cluster():
         self.model = None
         self.TEXT_EMB_MODEL_PATH = TEXT_EMB_MODEL_PATH
 
-    def load_text_emb(self, device='cuda:1'):
+    def load_text_emb(self, device='cuda:0'):
         self.model = EmbeddingModel(model_name_or_path=config.MODEL_CONFIG["bce-embedding-base_v1"],
                                     device=device)
 
@@ -106,8 +106,8 @@ if __name__ == '__main__':
     #     if i%50==0:
     #         print(time.time())
     # print(time.time())
-    # source = ["日本政府采用高科技处理核废水"]*9000
-    # target = ["日本政府在核污染问题上的政策变化", "各国如何应对日本核污染问题", "科技如何帮助处理日本核污染问题"]*100
-    # # similar_matrix, score = cluster.similarity(source, target, 0)
-    # cluster.cluster_sentences(source,0.4)
-    # print(time.time())
+    source = ["11"]
+    target = ["日本政府在核污染问题上的政策变化", "各国如何应对日本核污染问题", "科技如何帮助处理日本核污染问题"]
+    similar_matrix, score = cluster.similarity(source, target, 0.4,use_emd=True)
+    print(similar_matrix)
+    print(score)

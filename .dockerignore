@@ -2,4 +2,8 @@
 *.log
 .idea/
 *.out
+*test*
+kafka_consumer.py
+kafka_producer.py
+r.json
 
