@@ -74,21 +74,38 @@ class SentimentService():
                         'NEW_NEW': [], 'NEW_POST': [], 'NEW_POST_COMMENT': []
                     }
                     for tb, news_id, emo in zip(type_list, id_list, analyzed):
-                        update_dict[tb].append(
-                            {"id": news_id, "emotion": constants.Sentiment.senti[emo], "is_Emotional_Analysed": 1})
+                        if tb == "NEW_NEW":
+                            update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo],
+                                           "is_emotional_analysed": 1}
+                        elif tb == "NEW_POST":
+                            update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo],
+                                           "is_Emotional_Analysed": 1}
+                        else:
+                            update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo]}
+
+                        update_dict[tb].append(update_data)
                     for tb, updates in update_dict.items():
+                        if len(updates)==0:
+                            continue
                         try:
                             session = self.db.get_new_session()
+                            if topic2orm[tb] is DataSocialComment:
+                                print(session.query(DataSocialComment).filter(DataSocialComment.id==updates[0]["id"]).first().__dict__)
                             session.bulk_update_mappings(topic2orm[tb], updates)
                             session.commit()
                             session.close()
-                            self.log_pro.info(f"sent:{len(title_list)}")
+                            print(topic2orm[tb],updates[:10])
+                            self.log_pro.info(f"{tb}:{len(updates)}")
                         except Exception as e:
                             self.log_pro.error(f"update error:{e}")
                     # print(tb, updates)
                 except Exception as e:
                     self.log_pro.error(f"sentiment error:{e}")
-                consumer.commit()
+
+                try:
+                    consumer.commit()
+                except Exception as e:
+                    self.log_pro.error(f"kafka commit error")
 
 
 if __name__ == '__main__':

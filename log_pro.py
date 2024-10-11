@@ -15,7 +15,7 @@ def log_with_name(name):
     # logger1.propagate = False
     logger1.setLevel(logging.INFO)
     if not logger1.handlers:
-        test_log = logging.FileHandler('{}.log'.format(name), 'a', encoding='utf-8')
+        test_log = logging.FileHandler('logs/{}.log'.format(name), 'a', encoding='utf-8')
 
         test_log.setLevel(logging.INFO)
 

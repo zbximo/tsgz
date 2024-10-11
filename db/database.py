@@ -1,9 +1,5 @@
-from concurrent.futures import ThreadPoolExecutor
-
 from sqlalchemy import *
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.declarative import declarative_base
 
 
 class dbTools(object):
@@ -28,7 +24,7 @@ class dbTools(object):
         url = 'mysql+pymysql://%s:%s@%s:%d/%s' % (user, pwd, host, port, db)
         # engine = create_engine(url,  echo=False)
         print(url)
-        engine = create_engine(url, max_overflow=200, pool_size=100, echo=False)
+        engine = create_engine(url, max_overflow=200, pool_size=100, echo=False, pool_pre_ping=True)
         try:
             engine.connect()
         except Exception as e:

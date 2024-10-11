@@ -112,8 +112,16 @@ class TaskService():
                         dataAdd.plan_id = task.plan_id
                         dataAdd.newsId = nid
                         dataAdd.event_id = e_id
-                        count += 1
+
                         add_session.add(dataAdd)
+                        dataSimilar = DataSimilar()
+                        dataSimilar.id = snowflake.generate()
+                        dataSimilar.plan_id = task.plan_id
+                        dataSimilar.news_ids = str([nid])
+                        dataSimilar.event_id = e_id
+                        add_session.add(dataSimilar)
+
+                        count += 1
                         if count % batch_size == 0:
                             add_session.commit()
                 if count % batch_size != 0:
@@ -137,117 +145,119 @@ class TaskService():
                     event.newsIds = str(newsIds)
                 q_session.commit()
                 q_session.close()
-                # 相似新闻
-                """
-                1. 按event_id查询
-                3. 遍历data_by_event[event_id]
-                4. 计算相似度
-                """
+                # # 相似新闻直接添加 (假相似)
 
-                for k, v in data_by_event.items():
-                    q_session = self.db.get_new_session()
-                    DataSimilars = q_session.query(DataSimilar).filter(DataSimilar.event_id == k).all()
-                    DataSimilarsIds = [i.id for i in DataSimilars]  # [DataSimilars.id,...]
-                    DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]  # [[DataSimilars.news.id,...],]
-                    DataSimilars_cnt = len(DataSimilars)
-                    q_session.close()
-                    # 返回的data_by_event,包含所有事件,会存在一条新闻没被分类到某个事件的情况
-                    if len(v) == 0:
-                        continue
-
-                    # 没有相似文章 直接聚类
-                    if DataSimilars_cnt == 0:
-                        cluster_news_result = cluster.cluster_sentences(titles_data_by_event[k], threshold=0.3) \
-                            if len(v) > 1 else {0: [0]}
-                        for ck, cv in cluster_news_result.items():
-                            dataSimilar = DataSimilar()
-                            dataSimilar.id = snowflake.generate()
-                            dataSimilar.plan_id = task.plan_id
-                            dataSimilar.news_ids = str([v[cindex] for cindex in cv])
-                            dataSimilar.event_id = k
-                            ds_session = self.db.get_new_session()
-                            ds_session.add(dataSimilar)
-                            ds_session.commit()
-                            ds_session.close()
-                    else:
-                        threshold = 0.8
-                        # 遍历event里面的每个新闻
-
-                        dsnewsids = [d[0] for d in DataSimilarsNewsIds]  # 拿出每一个类的第一条新闻ID [news.id,...]
-                        q_session = self.db.get_new_session()
-                        similar_news = q_session.query(DataNew.title).filter(
-                            DataNew.id.in_(dsnewsids)).all()
-                        similar_news_list = [title[0] for title in similar_news]  # [news.title,...]
-                        q_session.close()
-                        if k == not_event_id:
-                            for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
-                                # 能在现有数据中匹配到相似文章
-                                if i in similar_news_list:
-                                    similar_dsid = dsnewsids[similar_news_list.index(i)]
-                                    ds_session = self.db.get_new_session()
-                                    ds = ds_session.query(DataSimilar).filter(DataSimilar.id == similar_dsid).first()
-                                    newsIds = eval(ds.news_ids)
-                                    newsIds.append(i)
-                                    newsIds = list(set(newsIds))
-                                    ds.news_ids = str(newsIds)
-                                    ds_session.commit()
-                                    ds_session.close()
-
-                                else:
-                                    dataSimilar = DataSimilar()
-                                    rid = snowflake.generate()
-                                    dataSimilar.id = rid
-                                    dataSimilar.plan_id = task.plan_id
-                                    dataSimilar.news_ids = str([i])
-                                    dataSimilar.event_id = k
-                                    ds_session = self.db.get_new_session()
-                                    ds_session.add(dataSimilar)
-                                    ds_session.commit()
-                                    ds_session.close()
-
-                                    DataSimilarsIds.append(rid)
-                                    DataSimilarsNewsIds.append([i])
-                                    dsnewsids.append(i)
-                                    similar_news_list.append(t)
-                        else:
-
-                            similar_news_emb_list = cluster.get_embedding(
-                                similar_news_list)  # [news.embedding, ...] [n,768]
-                            for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
-                                source = cluster.get_embedding(t)
-                                # similar_matrix, score = cluster.similarity(t, similar_news_list,
-                                #                                            threshold=threshold, use_emd=True)
-                                similar_matrix, score = cluster.similarity(source, similar_news_emb_list,
-                                                                           threshold=threshold, use_emd=False)
-                                # 能在现有数据中匹配到相似文章
-                                if similar_matrix[0] < len(similar_news_list):
-                                    max_similar_dsid = DataSimilarsIds[similar_matrix[0]]
-                                    ds_session = self.db.get_new_session()
-                                    ds = ds_session.query(DataSimilar).filter(
-                                        DataSimilar.id == max_similar_dsid).first()
-                                    newsIds = eval(ds.news_ids)
-                                    newsIds.append(i)
-                                    newsIds = list(set(newsIds))
-                                    ds.news_ids = str(newsIds)
-                                    ds_session.commit()
-                                    ds_session.close()
-                                else:
-                                    dataSimilar = DataSimilar()
-                                    rid = snowflake.generate()
-                                    dataSimilar.id = rid
-                                    dataSimilar.plan_id = task.plan_id
-                                    dataSimilar.news_ids = str([i])
-                                    dataSimilar.event_id = k
-                                    ds_session = self.db.get_new_session()
-                                    ds_session.add(dataSimilar)
-                                    ds_session.commit()
-                                    ds_session.close()
-
-                                    DataSimilarsIds.append(rid)
-                                    DataSimilarsNewsIds.append([i])
-                                    dsnewsids.append(i)
-                                    similar_news_list.append(t)
-                                    similar_news_emb_list = np.append(similar_news_emb_list, source, axis=0)
+                # # 相似新闻
+                # """
+                # 1. 按event_id查询
+                # 3. 遍历data_by_event[event_id]
+                # 4. 计算相似度
+                # """
+                #
+                # for k, v in data_by_event.items():
+                #     q_session = self.db.get_new_session()
+                #     DataSimilars = q_session.query(DataSimilar).filter(DataSimilar.event_id == k).all()
+                #     DataSimilarsIds = [i.id for i in DataSimilars]  # [DataSimilars.id,...]
+                #     DataSimilarsNewsIds = [eval(i.news_ids) for i in DataSimilars]  # [[DataSimilars.news.id,...],]
+                #     DataSimilars_cnt = len(DataSimilars)
+                #     q_session.close()
+                #     # 返回的data_by_event,包含所有事件,会存在一条新闻没被分类到某个事件的情况
+                #     if len(v) == 0:
+                #         continue
+                #
+                #     # 没有相似文章 直接聚类
+                #     if DataSimilars_cnt == 0:
+                #         cluster_news_result = cluster.cluster_sentences(titles_data_by_event[k], threshold=0.3) \
+                #             if len(v) > 1 else {0: [0]}
+                #         for ck, cv in cluster_news_result.items():
+                #             dataSimilar = DataSimilar()
+                #             dataSimilar.id = snowflake.generate()
+                #             dataSimilar.plan_id = task.plan_id
+                #             dataSimilar.news_ids = str([v[cindex] for cindex in cv])
+                #             dataSimilar.event_id = k
+                #             ds_session = self.db.get_new_session()
+                #             ds_session.add(dataSimilar)
+                #             ds_session.commit()
+                #             ds_session.close()
+                #     else:
+                #         threshold = 0.8
+                #         # 遍历event里面的每个新闻
+                #
+                #         dsnewsids = [d[0] for d in DataSimilarsNewsIds]  # 拿出每一个类的第一条新闻ID [news.id,...]
+                #         q_session = self.db.get_new_session()
+                #         similar_news = q_session.query(DataNew.title).filter(
+                #             DataNew.id.in_(dsnewsids)).all()
+                #         similar_news_list = [title[0] for title in similar_news]  # [news.title,...]
+                #         q_session.close()
+                #         if k == not_event_id:
+                #             for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
+                #                 # 能在现有数据中匹配到相似文章
+                #                 if i in similar_news_list:
+                #                     similar_dsid = dsnewsids[similar_news_list.index(i)]
+                #                     ds_session = self.db.get_new_session()
+                #                     ds = ds_session.query(DataSimilar).filter(DataSimilar.id == similar_dsid).first()
+                #                     newsIds = eval(ds.news_ids)
+                #                     newsIds.append(i)
+                #                     newsIds = list(set(newsIds))
+                #                     ds.news_ids = str(newsIds)
+                #                     ds_session.commit()
+                #                     ds_session.close()
+                #
+                #                 else:
+                #                     dataSimilar = DataSimilar()
+                #                     rid = snowflake.generate()
+                #                     dataSimilar.id = rid
+                #                     dataSimilar.plan_id = task.plan_id
+                #                     dataSimilar.news_ids = str([i])
+                #                     dataSimilar.event_id = k
+                #                     ds_session = self.db.get_new_session()
+                #                     ds_session.add(dataSimilar)
+                #                     ds_session.commit()
+                #                     ds_session.close()
+                #
+                #                     DataSimilarsIds.append(rid)
+                #                     DataSimilarsNewsIds.append([i])
+                #                     dsnewsids.append(i)
+                #                     similar_news_list.append(t)
+                #         else:
+                #
+                #             similar_news_emb_list = cluster.get_embedding(
+                #                 similar_news_list)  # [news.embedding, ...] [n,768]
+                #             for i, t in tqdm(zip(data_by_event[k], titles_data_by_event[k])):
+                #                 source = cluster.get_embedding(t)
+                #                 # similar_matrix, score = cluster.similarity(t, similar_news_list,
+                #                 #                                            threshold=threshold, use_emd=True)
+                #                 similar_matrix, score = cluster.similarity(source, similar_news_emb_list,
+                #                                                            threshold=threshold, use_emd=False)
+                #                 # 能在现有数据中匹配到相似文章
+                #                 if similar_matrix[0] < len(similar_news_list):
+                #                     max_similar_dsid = DataSimilarsIds[similar_matrix[0]]
+                #                     ds_session = self.db.get_new_session()
+                #                     ds = ds_session.query(DataSimilar).filter(
+                #                         DataSimilar.id == max_similar_dsid).first()
+                #                     newsIds = eval(ds.news_ids)
+                #                     newsIds.append(i)
+                #                     newsIds = list(set(newsIds))
+                #                     ds.news_ids = str(newsIds)
+                #                     ds_session.commit()
+                #                     ds_session.close()
+                #                 else:
+                #                     dataSimilar = DataSimilar()
+                #                     rid = snowflake.generate()
+                #                     dataSimilar.id = rid
+                #                     dataSimilar.plan_id = task.plan_id
+                #                     dataSimilar.news_ids = str([i])
+                #                     dataSimilar.event_id = k
+                #                     ds_session = self.db.get_new_session()
+                #                     ds_session.add(dataSimilar)
+                #                     ds_session.commit()
+                #                     ds_session.close()
+                #
+                #                     DataSimilarsIds.append(rid)
+                #                     DataSimilarsNewsIds.append([i])
+                #                     dsnewsids.append(i)
+                #                     similar_news_list.append(t)
+                #                     similar_news_emb_list = np.append(similar_news_emb_list, source, axis=0)
 
             if post_id_list is not None and len(post_id_list) != 0:
                 posts_query: Query = session.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list))
@@ -322,11 +332,13 @@ class TaskService():
 
         return 1
 
+
     def run_all_time_v2(self):
         while True:
             r = self.analyze_task_v2()
             if r == 0:
                 time.sleep(60)
+
 
     def kafka_analyze(self):
         consumer = KafkaConsumer(
@@ -335,6 +347,7 @@ class TaskService():
             auto_offset_reset='earliest',
             enable_auto_commit=False,
             group_id='plan_consumer1',
+
             # value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
         try:
@@ -347,8 +360,10 @@ class TaskService():
 
                 except Exception as e:
                     self.log_pro.error(f'{message.value=} error,  {e=}')
-                # 在这里处理消息，例如基于 task_id 执行某些操作
-                consumer.commit()
+                try:
+                    consumer.commit()
+                except Exception as e:
+                    self.log_pro.error(f"kafka commit error:{message.value=}")
         except KeyboardInterrupt:
             print("停止消费者...")
         finally:
