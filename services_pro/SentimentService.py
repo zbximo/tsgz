@@ -9,7 +9,6 @@ import time
 from kafka import KafkaConsumer
 from tqdm import tqdm
 
-import config
 import log_pro
 from db.database import dbTools
 from db.entity import *
@@ -24,21 +23,34 @@ class SentimentService():
         self.db = dbTools(mode)
         self.db.open()
         self.log_pro = log_pro.log_with_name(f"sentiment_{os.environ['tsgz_mode']}")
+        if mode == 'test':
+            config_module = 'config'
+        else:
+            config_module = 'config_pro'
 
+        self.config = __import__(config_module)
+        self.KAFKA_CONFIG = self.config.KAFKA_CONFIG
     def kafka_senti(self):
-        topic2orm = {'NEW_NEW': DataNew,
-                     'NEW_POST': DataSocialPost,
-                     'NEW_POST_COMMENT': DataSocialComment
+        news_topic = self.KAFKA_CONFIG["topics"]["news"]
+        post_topic = self.KAFKA_CONFIG["topics"]["post"]
+        comment_topic = self.KAFKA_CONFIG["topics"]["comment"]
+        # topic2orm = {'NEW_NEW': DataNew,
+        #              'NEW_POST': DataSocialPost,
+        #              'NEW_POST_COMMENT': DataSocialComment
+        #              }
+        topic2orm = {news_topic: DataNew,
+                     post_topic: DataSocialPost,
+                     comment_topic: DataSocialComment
                      }
-
         consumer = KafkaConsumer(
-            bootstrap_servers=config.KAFKA_CONFIG.get("bootstrap_servers"),
+            bootstrap_servers=self.KAFKA_CONFIG["bootstrap_servers"],
             auto_offset_reset='earliest',
             enable_auto_commit=False,
             group_id='post_consumer1',
             # value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
-        consumer.subscribe(['NEW_NEW', 'NEW_POST', 'NEW_POST_COMMENT'])
+        # consumer.subscribe(['NEW_NEW', 'NEW_POST', 'NEW_POST_COMMENT'])
+        consumer.subscribe([news_topic, post_topic, comment_topic])
 
         SC = SentimentCls()
         while True:
@@ -70,31 +82,42 @@ class SentimentService():
                 try:
                     analyzed = SC.predict(title_list)
 
+                    # update_dict = {
+                    #     'NEW_NEW': [], 'NEW_POST': [], 'NEW_POST_COMMENT': []
+                    # }
                     update_dict = {
-                        'NEW_NEW': [], 'NEW_POST': [], 'NEW_POST_COMMENT': []
+                        news_topic: [], post_topic: [], comment_topic: []
                     }
                     for tb, news_id, emo in zip(type_list, id_list, analyzed):
-                        if tb == "NEW_NEW":
+                        # if tb == "NEW_NEW":
+                        #     update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo],
+                        #                    "is_emotional_analysed": 1}
+                        # elif tb == "NEW_POST":
+                        #     update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo],
+                        #                    "is_Emotional_Analysed": 1}
+                        # else:
+                        #     update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo]}
+                        if tb == news_topic:
                             update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo],
                                            "is_emotional_analysed": 1}
-                        elif tb == "NEW_POST":
+                        elif tb == post_topic:
                             update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo],
                                            "is_Emotional_Analysed": 1}
                         else:
                             update_data = {"id": news_id, "emotion": constants.Sentiment.senti[emo]}
-
                         update_dict[tb].append(update_data)
+
                     for tb, updates in update_dict.items():
                         if len(updates)==0:
                             continue
                         try:
                             session = self.db.get_new_session()
-                            if topic2orm[tb] is DataSocialComment:
-                                print(session.query(DataSocialComment).filter(DataSocialComment.id==updates[0]["id"]).first().__dict__)
+                            # if topic2orm[tb] is DataSocialComment:
+                            #     print(session.query(DataSocialComment).filter(DataSocialComment.id==updates[0]["id"]).first().__dict__)
                             session.bulk_update_mappings(topic2orm[tb], updates)
                             session.commit()
                             session.close()
-                            print(topic2orm[tb],updates[:10])
+                            # print(topic2orm[tb],updates[:10])
                             self.log_pro.info(f"{tb}:{len(updates)}")
                         except Exception as e:
                             self.log_pro.error(f"update error:{e}")

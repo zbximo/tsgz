@@ -11,6 +11,8 @@ from sqlalchemy.orm import Query
 from tqdm import tqdm
 import paddlenlp
 from kafka import KafkaConsumer
+
+from config_pro import KAFKA_CONFIG
 from db.entity import *
 
 from models.Cluster import *
@@ -18,7 +20,6 @@ from models.EventCls import EventCls
 from utils.Tools import *
 import numpy as np
 from db.database import dbTools
-
 import transformers
 
 
@@ -27,7 +28,13 @@ class TaskService():
         self.db = dbTools(mode)
         self.db.open()
         self.log_pro = log_pro.log_with_name(f"task_{os.environ['tsgz_mode']}")
+        if mode == 'test':
+            config_module = 'config'
+        else:
+            config_module = 'config_pro'
 
+        self.config = __import__(config_module)
+        self.KAFKA_CONFIG = self.config.KAFKA_CONFIG
     def analyze_task_v2(self, task_ids=None):
         """
 
@@ -342,12 +349,12 @@ class TaskService():
 
     def kafka_analyze(self):
         consumer = KafkaConsumer(
-            'CHANGE_PLAN',
-            bootstrap_servers=['10.63.146.203:9092'],
+            self.KAFKA_CONFIG["topics"]["task"],
+            bootstrap_servers=self.KAFKA_CONFIG["bootstrap_servers"],
             auto_offset_reset='earliest',
             enable_auto_commit=False,
             group_id='plan_consumer1',
-
+            max_poll_interval_ms=108_000_000, # 30min
             # value_deserializer=lambda x: json.loads(x.decode('utf-8'))
         )
         try:
@@ -363,7 +370,7 @@ class TaskService():
                 try:
                     consumer.commit()
                 except Exception as e:
-                    self.log_pro.error(f"kafka commit error:{message.value=}")
+                    self.log_pro.error(f"kafka commit error:{message.value=}, {e=}")
         except KeyboardInterrupt:
             print("停止消费者...")
         finally:

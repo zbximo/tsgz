@@ -6,11 +6,12 @@ import os
 
 # # 数据库连接配置
 MILVUS_CONFIG = {
-    'host': '10.63.146.221',
-    'port': 19530,
-    # 'username': 'root',
-    # 'password': 'tsgz2024',
-    # 'database': 'situation_system'
+    'uri': 'http://10.63.146.221:19530',
+    'user': "",
+    'password': "",
+    'db_name': "",
+    'token': ""
+
 }
 
 # 数据库连接配置
@@ -23,7 +24,15 @@ DB_CONFIG = {
 }
 KAFKA_CONFIG = {
     'bootstrap_servers': ['10.63.146.203:9092'],
+    'topics': {
+        'task': 'CHANGE_PLAN',
+        'news': 'NEW_NEW',
+        'post': 'NEW_POST',
+        'comment': 'NEW_POST_COMMENT'
+    }
+
 }
+
 
 def get_model_dir(model_name):
     model_dir = os.path.join(os.path.dirname(__file__), f'model_dir/{model_name}')

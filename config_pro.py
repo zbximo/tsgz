@@ -6,11 +6,12 @@ import os
 
 # # 数据库连接配置
 MILVUS_CONFIG = {
-    'host': '10.63.146.221',
-    'port': 19530,
-    # 'username': 'root',
-    # 'password': 'tsgz2024',
-    # 'database': 'situation_system'
+    'uri': 'http://10.63.146.221:19530',
+    'user': "",
+    'password': "",
+    'db_name': "",
+    'token': ""
+
 }
 
 # 数据库连接配置
@@ -20,6 +21,17 @@ DB_CONFIG = {
     'username': 'root',
     'password': 'tsgz2024',
     'database': 'situation_system'
+}
+
+KAFKA_CONFIG = {
+    'bootstrap_servers': ['10.63.146.203:9092'],
+    'topics': {
+        'task': 'CHANGE_PLAN201',
+        'news': 'NEW_NEW201',
+        'post': 'NEW_POST201',
+        'comment': 'NEW_POST_COMMENT201'
+    }
+
 }
 
 
@@ -35,7 +47,6 @@ MODEL_CONFIG = {
     "utc-base": get_model_dir("utc-base"),
     "cn": get_model_dir("cn"),
     "emotion": get_model_dir("emotion"),
-    "bce-embedding-base_v1":get_model_dir("bce-embedding-base_v1"),
-    "bce-reranker-base_v1":get_model_dir("bce-reranker-base_v1")
+    "bce-embedding-base_v1": get_model_dir("bce-embedding-base_v1"),
+    "bce-reranker-base_v1": get_model_dir("bce-reranker-base_v1")
 }
-

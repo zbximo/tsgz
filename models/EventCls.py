@@ -9,6 +9,7 @@ from modelscope import pipeline
 from pymilvus import MilvusClient, DataType
 
 import config
+import os
 
 
 class EventCls():
@@ -25,7 +26,7 @@ class EventCls():
                                    config.MODEL_CONFIG["nlp_structbert_zero-shot-classification_chinese-large"],
                                    device="cuda:0")
 
-    def insert_milvus(self, plan_id, data, is_news=True):
+    def insert_milvus(self, plan_id, data, is_news=True, ):
         """
 
         :param plan_id:
@@ -43,8 +44,20 @@ class EventCls():
         data_emb = self.bce_emb_model.encode(data_t, enable_tqdm=False, batch_size=self.bs).tolist()
         for idx, i in enumerate(data):
             i["embedding"] = data_emb[idx]
+        mode = os.environ['tsgz_mode']
+        if mode == 'test':
+            config_module = 'config'
+        else:
+            config_module = 'config_pro'
+
+        config = __import__(config_module)
+
+        Milvus_config = config.MILVUS_CONFIG
+        # self.client = MilvusClient(
+        #     uri="http://10.63.146.221:19530",
+        # )
         self.client = MilvusClient(
-            uri="http://10.63.146.221:19530"
+            **Milvus_config
         )
         schema = self.client.create_schema(
             #     auto_id=True,
@@ -77,10 +90,17 @@ class EventCls():
             self.collection_name
         )
         try:
-            insert_result = self.client.insert(
-                self.collection_name,
-                data=data
-            )
+            batch_size = 1000
+            total_data = len(data)
+
+            # 通过步长对数据进行切片，批量插入
+            for i in range(0, total_data, batch_size):
+                batch = data[i:i + batch_size]  # 取出当前批次
+                self.client.insert(self.collection_name, data=batch)
+            # insert_result = self.client.insert(
+            #     self.collection_name,
+            #     data=data
+            # )
             # print("Insert result:", insert_result)
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -147,7 +167,8 @@ class EventCls():
                 pairs_scores = [pairs_scores]
             score_th = max(pairs_scores) * 0.9
             for idx, score in enumerate(pairs_scores):
-                if score >= score_th and remain_titles[idx][0] not in event_result_id["非事件信息"] and remain_titles[idx][0] not in event_result_id[event_name]:
+                if score >= score_th and remain_titles[idx][0] not in event_result_id["非事件信息"] and \
+                        remain_titles[idx][0] not in event_result_id[event_name]:
                     event_result_id[event_name].append(remain_titles[idx][0])
                     event_result_title[event_name].append(remain_titles[idx][1])
 
@@ -160,7 +181,6 @@ class EventCls():
             titles_by_event[event_name2id_dict[e_name]] = t
 
         return news_by_event, titles_by_event
-
 
     def close(self):
         self.client.drop_collection(self.collection_name)

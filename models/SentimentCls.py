@@ -14,13 +14,14 @@ class SentimentCls(object):
         self.cn_model_path = config.MODEL_CONFIG["cn"]
         self.cn_schema = ["涉及中国", "不涉及中国"]
         self.cn_model = Taskflow("zero_shot_text_classification", schema=self.cn_schema, single_label=True,
-                                 device_id=1,
+                                 device_id=0,
                                  task_path=self.cn_model_path)
 
         self.emotion_model_path = config.MODEL_CONFIG["emotion"]
         self.emotion_schema = ["中立", "正面", "负面"]
-        self.sentiment_classifier = Taskflow("zero_shot_text_classification", schema=self.emotion_schema, single_label=True,
-                                             device_id=1,
+        self.sentiment_classifier = Taskflow("zero_shot_text_classification", schema=self.emotion_schema,
+                                             single_label=True,
+                                             device_id=0,
                                              task_path=self.emotion_model_path)
 
     def predict(self, titles):
@@ -52,7 +53,8 @@ class SentimentCls(object):
 
 
 if __name__ == '__main__':
-    titles = ["江西省气象台变更暴雨橙色预警信号- DoNews快讯"*10, "浙江人很友善","檢총장, 金여사 명품백 의혹에 “법리따라 엄정수사…지켜봐달라”","" ]
+    titles = ["江西省气象台变更暴雨橙色预警信号- DoNews快讯" * 10, "浙江人很友善",
+              "檢총장, 金여사 명품백 의혹에 “법리따라 엄정수사…지켜봐달라”", ""]
     x = [i if i is not None and i != "" else " " for i in titles]
     d = SentimentCls().predict(x)
     print(d)
