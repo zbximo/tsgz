@@ -336,7 +336,7 @@ class TaskService():
             # session.commit()
 
         # session.close()
-
+        del cluster
         return 1
 
 
