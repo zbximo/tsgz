@@ -31,7 +31,7 @@ class EventCls():
 
         :param plan_id:
         :param data: [{}]
-        :param is_news:
+        :param is_news: 是否为新闻
         :return:
         """
         if is_news:
@@ -93,9 +93,9 @@ class EventCls():
             batch_size = 1000
             total_data = len(data)
 
-            # 通过步长对数据进行切片，批量插入
+            # 对数据进行切片，批量插入
             for i in range(0, total_data, batch_size):
-                batch = data[i:i + batch_size]  # 取出当前批次
+                batch = data[i:i + batch_size]
                 self.client.insert(self.collection_name, data=batch)
             # insert_result = self.client.insert(
             #     self.collection_name,
@@ -116,12 +116,13 @@ class EventCls():
         :param titles_id: titles_id
         :return:
         """
-        self.client = MilvusClient(
-            uri="http://10.63.146.221:19530"
-        )
+        # self.client = MilvusClient(
+        #     uri="http://10.63.146.221:19530"
+        # )
+        print(keywords)
         event_name2id_dict = {}
-        event_result_id = {}
-        event_result_title = {}
+        event_result_id = {} # event 按id分
+        event_result_title = {} # event按事件标题分
         for event_id, event_name in events:
             event_result_id[event_name] = []
             event_result_title[event_name] = []
@@ -129,24 +130,45 @@ class EventCls():
             event_name2id_dict[event_name] = event_id
             if event_name == "非事件信息":
                 event_name2id_dict["其他"] = event_id
-
+        # labels = []
+        # event_label_name_map = {'非事件信息': '非事件信息'}
+        # for i in events[:-1]:
+        #     label_temp = i[1]
+        #     for j in keywords:
+        #         label_temp = label_temp.replace(j, "")
+        #     labels.append(label_temp)
+        #     if label_temp in event_label_name_map:
+        #         label_temp = i[1]
+        #     event_label_name_map[label_temp] = i[1]
         labels = [i[1] for i in events[:-1]]
-        labels.append("其他")
-        results = self.classifier(titles, candidate_labels=labels)
+        # labels.append("其他")
+        print(labels)
+        # 零样本分类
+        results = self.classifier(titles, candidate_labels=labels, multi_label=True)
         for t, t_id, res in zip(titles, titles_id, results):
             label = res['labels'][0]
             score = res['scores'][0]
             if label == "其他":
                 label = "非事件信息"
-            if score > 0.45:
-                event_result_id[label].append(t_id)
-                event_result_title[label].append(t)
+            if score > 0.75:
+                # label_event_name = event_label_name_map[label]
+                label_event_name = label
+                event_result_id[label_event_name].append(t_id)
+                event_result_title[label_event_name].append(t)
             else:
                 event_result_id["非事件信息"].append(t_id)
                 event_result_title["非事件信息"].append(t)
-
+        print(event_result_title)
+        # 遍历每个事件，到Milvus中搜索
         for event_id, event_name in events[:-1]:
-            d = keywords + [event_name]
+            # d = keywords + [event_name]
+            # label_temp = event_name
+            # for j in keywords:
+            #     label_temp = label_temp.replace(j, "")
+            # d = [label_temp]
+            d = [event_name]
+            # print(d)
+            # 把keyword 去掉
             search_embeddings = self.bce_emb_model.encode(d, enable_tqdm=False, batch_size=self.bs)
             search_params = {"metric_type": "COSINE", "params": {}}
             results = self.client.search(self.collection_name, search_embeddings, search_params=search_params,
@@ -171,7 +193,7 @@ class EventCls():
                         remain_titles[idx][0] not in event_result_id[event_name]:
                     event_result_id[event_name].append(remain_titles[idx][0])
                     event_result_title[event_name].append(remain_titles[idx][1])
-
+        # 整合零样本和Milvus的结果
         news_by_event = {}  # {"event_id":[news_id, news_id, ...]}
         titles_by_event = {}
         # event_name to event_id
@@ -179,7 +201,6 @@ class EventCls():
             news_by_event[event_name2id_dict[e_name]] = t_ids
         for e_name, t in event_result_title.items():
             titles_by_event[event_name2id_dict[e_name]] = t
-
         return news_by_event, titles_by_event
 
     def close(self):

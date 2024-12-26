@@ -69,9 +69,10 @@ class TaskService():
             task: DataTask
             post_id_list = eval(task.post_id_list) if task.post_id_list else None
             new_id_list = eval(task.news_id_list) if task.news_id_list else None
-            print(f'{len(post_id_list)=}', f'{len(new_id_list)=}')
+            # print(f'{len(post_id_list)=}', f'{len(new_id_list)=}')
 
             if new_id_list is not None and len(new_id_list) != 0:
+                session = self.db.get_new_session()
                 news_query: Query = session.query(DataNew).filter(DataNew.id.in_(new_id_list))
                 news_list = news_query.all()
                 insert_data = []
@@ -87,7 +88,7 @@ class TaskService():
 
                 news_zh_titles = [j.title if j.title is not None and j.title != "" else " " for j in news_list]
                 news_id = [j.id for j in news_list]
-
+                session.close()
                 e_session = self.db.get_new_session()
                 events = e_session.query(DataEvent).filter(
                     DataEvent.plan_id == task.plan_id).order_by(
@@ -103,8 +104,11 @@ class TaskService():
 
                 EC = EventCls()
                 EC.insert_milvus(task.plan_id, insert_data)
-                data_by_event, titles_data_by_event = EC.predict(event_id_titles, task.keywords.split(","),
-                                                                 news_zh_titles, news_id)
+                #print(json.loads(task.keywords))
+
+                data_by_event, titles_data_by_event = EC.predict(event_id_titles, [],news_zh_titles, news_id)
+                # data_by_event, titles_data_by_event = EC.predict(event_id_titles, task.keywords.split(","),
+                #                                                  news_zh_titles, news_id)
                 # ori_data_by_event = {}
                 # 遍历添加data_add表
                 batch_size = 100  # 每N个记录提交一次
@@ -121,12 +125,12 @@ class TaskService():
                         dataAdd.event_id = e_id
 
                         add_session.add(dataAdd)
-                        dataSimilar = DataSimilar()
-                        dataSimilar.id = snowflake.generate()
-                        dataSimilar.plan_id = task.plan_id
-                        dataSimilar.news_ids = str([nid])
-                        dataSimilar.event_id = e_id
-                        add_session.add(dataSimilar)
+                        # dataSimilar = DataSimilar()
+                        # dataSimilar.id = snowflake.generate()
+                        # dataSimilar.plan_id = task.plan_id
+                        # dataSimilar.news_ids = str([nid])
+                        # dataSimilar.event_id = e_id
+                        # add_session.add(dataSimilar)
 
                         count += 1
                         if count % batch_size == 0:
@@ -267,12 +271,14 @@ class TaskService():
                 #                     similar_news_emb_list = np.append(similar_news_emb_list, source, axis=0)
 
             if post_id_list is not None and len(post_id_list) != 0:
+                session = self.db.get_new_session()
                 posts_query: Query = session.query(DataSocialPost).filter(DataSocialPost.id.in_(post_id_list))
                 posts_list = posts_query.all()
                 insert_data = [{"id": i.id, "title": i.title} if i.title is not None and i != "" else {
                     "id": i.id, "title": " "} for i in posts_list]
                 post_zh_titles = [j.title if j.title is not None and j.title != "" else " " for j in posts_list]
                 post_id = [j.id for j in posts_list]
+                session.close()
                 e_session = self.db.get_new_session()
 
                 events = e_session.query(DataEvent).filter(
@@ -286,7 +292,8 @@ class TaskService():
                 event_id_titles = [[j.id, j.title] for j in events]
                 EC = EventCls()
                 EC.insert_milvus(task.plan_id, insert_data, is_news=False)
-                data_by_event, titles_data_by_event = EC.predict(event_id_titles, task.keywords.split(","),
+                #print(json.loads(task.keywords))
+                data_by_event, titles_data_by_event = EC.predict(event_id_titles, [],
                                                                  post_zh_titles, post_id)
                 # ori_data_by_event = {}
                 # 遍历添加data_add表
@@ -363,6 +370,7 @@ class TaskService():
                     msg = json.loads(message.value.decode('utf-8'))
                     if "task_id" in msg.keys():
                         task_id_ = msg.get('task_id')
+                        print(task_id_)
                         self.analyze_task_v2([task_id_])
 
                 except Exception as e:

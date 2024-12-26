@@ -9,7 +9,6 @@ scikit_learn==1.4.2
 transformers~=4.36.2
 sentence_transformers==2.7.0
 SQLAlchemy==1.4.52
-sshtunnel==0.4.0
 tqdm==4.66.4
 pymysql==1.1.0
 apscheduler==3.10.4
